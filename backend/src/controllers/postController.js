@@ -2,6 +2,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Comment = require('../models/Comment');
 const { paginate } = require('../utils/paginate');
+const mongoose = require('mongoose');
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -63,27 +64,42 @@ const getPosts = async (req, res) => {
 // @access  Public
 const getPost = async (req, res) => {
   try {
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid post id' });
+    }
+
     const post = await Post.findById(req.params.id)
       .populate('author', 'username avatar reputation')
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'author',
-          select: 'username avatar'
-        }
-      });
+      // .populate({
+      //   path: 'comments',
+      //   populate: {
+      //     path: 'author',
+      //     select: 'username avatar'
+      //   }
+      // });
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
+    const comments = await Comment.find({ post: req.params.id })
+      .populate('author', 'username avatar')
+      .sort({ createdAt: 1 });
+
     // Increment view count
     post.views += 1;
     await post.save();
 
-    res.json(post);
+    res.json({
+      ...post.toObject(),
+      comments
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    // res.status(500).json({ message: error.message });
+    console.error('getPost error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
