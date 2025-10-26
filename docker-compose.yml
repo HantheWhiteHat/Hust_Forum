@@ -1,0 +1,53 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: bkforum-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: bkforum
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - bkforum-network
+
+  backend:
+    build: ./backend
+    container_name: bkforum-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/bkforum?authSource=admin
+      - JWT_SECRET=your_super_secret_jwt_key_here
+      - JWT_EXPIRE=7d
+      - CORS_ORIGIN=http://localhost:5173
+    depends_on:
+      - mongodb
+    networks:
+      - bkforum-network
+
+  frontend:
+    build: ./frontend
+    container_name: bkforum-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:3000"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    depends_on:
+      - backend
+    networks:
+      - bkforum-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  bkforum-network:
+    driver: bridge
+
