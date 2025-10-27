@@ -89,8 +89,10 @@ const getPost = async (req, res) => {
       .sort({ createdAt: 1 });
 
     // Increment view count
-    post.views += 1;
-    await post.save();
+    if (!req.user || (req.user && req.user.id !== post.author._id.toString())) {
+      post.views += 1;
+      await post.save();
+    }
 
     res.json({
       ...post.toObject(),
