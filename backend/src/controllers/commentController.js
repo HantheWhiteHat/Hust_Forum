@@ -1,5 +1,6 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
+const mongoose = require('mongoose');
 
 // @desc    Get comments for a post
 // @route   GET /api/comments/post/:postId
@@ -9,7 +10,11 @@ const getComments = async (req, res) => {
     const { postId } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
-    const comments = await Comment.find({ post: postId, parentComment: null })
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid post ID format" });
+    }
+
+    const comments = await Comment.find({ post: new mongoose.Types.ObjectId(postId), parentComment: null })
       .populate('author', 'username avatar')
       .populate({
         path: 'replies',
@@ -22,7 +27,7 @@ const getComments = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Comment.countDocuments({ post: postId, parentComment: null });
+    const total = await Comment.countDocuments({ post: new mongoose.Types.ObjectId(postId), parentComment: null });
 
     res.json({
       comments,
@@ -33,6 +38,8 @@ const getComments = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Error fetching comments:", error.stack);
+
     res.status(500).json({ message: error.message });
   }
 };
