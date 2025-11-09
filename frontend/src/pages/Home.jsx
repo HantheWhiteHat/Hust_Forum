@@ -48,22 +48,22 @@ const Home = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">BK Forum</h1>
+    <div className="max-w-7xl mx-auto px-6 py-8 bg-gray-100">
+      <div className="flex justify-between items-center mb-10 border-b pb-4">
+        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">BK Forum</h1>
         <Link
           to="/create-post"
-          className="btn btn-primary"
+          className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-base hover:bg-indigo-700 transition duration-300 shadow-lg"
         >
           Create Post
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="card mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white p-6 rounded-xl shadow-xl mb-8 border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Search
             </label>
             <input
@@ -75,7 +75,7 @@ const Home = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Category
             </label>
             <select
@@ -93,7 +93,7 @@ const Home = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Sort By
             </label>
             <select
@@ -110,7 +110,7 @@ const Home = () => {
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ page: 1, category: '', search: '', sort: 'newest' })}
-              className="btn btn-secondary w-full"
+              className="w-full py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150"
             >
               Clear Filters
             </button>
@@ -119,10 +119,10 @@ const Home = () => {
       </div>
 
       {/* Posts */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {posts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No posts found</p>
+          <div className="text-center py-16 bg-white rounded-xl shadow-lg border border-gray-100">
+            <p className="text-gray-500 text-xl font-medium">No posts found</p>
           </div>
         ) : (
           posts.map((post) => (
@@ -133,22 +133,22 @@ const Home = () => {
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <div className="flex justify-center mt-8">
-          <div className="flex space-x-2">
+        <div className="flex justify-center mt-12">
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => handlePageChange(pagination.prevPage)}
               disabled={!pagination.hasPrevPage}
-              className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-indigo-300 bg-white text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
-            <span className="px-4 py-2 text-gray-700">
+            <span className="px-4 py-2 text-gray-700 font-semibold bg-gray-100 rounded-lg">
               Page {pagination.current} of {pagination.pages}
             </span>
             <button
               onClick={() => handlePageChange(pagination.nextPage)}
               disabled={!pagination.hasNextPage}
-              className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-indigo-300 bg-white text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
