@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Heart, Reply, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api/api'
 
-const CommentTree = ({ comment, onReply }) => {
+const CommentTree = ({ comment, onReplySuccess }) => {
   const [showReplies, setShowReplies] = useState(true)
   const [replies, setReplies] = useState(comment.replies || [])
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [submittingReply, setSubmittingReply] = useState(false)
+
+  useEffect(() => {
+    setReplies(comment.replies || [])
+  }, [comment.replies])
 
   const handleReply = async (e) => {
     e.preventDefault()
@@ -24,6 +28,10 @@ const CommentTree = ({ comment, onReply }) => {
       setReplies(prev => [...prev, response.data])
       setReplyText('')
       setShowReplyForm(false)
+
+      if (onReplySuccess) {
+        onReplySuccess()
+      }
     } catch (error) {
       console.error('Error submitting reply:', error)
     } finally {
@@ -128,7 +136,11 @@ const CommentTree = ({ comment, onReply }) => {
               {showReplies && (
                 <div className="space-y-4">
                   {replies.map((reply) => (
-                    <CommentTree key={reply._id} comment={reply} />
+                    <CommentTree 
+                      key={reply._id} 
+                      comment={reply} 
+                      onReplySuccess={onReplySuccess}
+                    />
                   ))}
                 </div>
               )}

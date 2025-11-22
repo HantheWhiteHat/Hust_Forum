@@ -2,6 +2,21 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const mongoose = require('mongoose');
 
+async function getReplies(commentId) {
+  const replies = await Comment.find({ parentComment: commentId })
+    .populate('author', 'username avatar')
+    .sort({ createdAt: 1 });
+
+  // fetch replies of replies
+  for (let reply of replies) {
+    reply.replies = await getReplies(reply._id); // recursive
+  }
+
+  return replies;
+}
+
+
+
 // @desc    Get comments for a post
 // @route   GET /api/comments/post/:postId
 // @access  Public
@@ -14,18 +29,25 @@ const getComments = async (req, res) => {
       return res.status(400).json({ message: "Invalid post ID format" });
     }
 
-    const comments = await Comment.find({ post: new mongoose.Types.ObjectId(postId), parentComment: null })
+    const parentComments = await Comment.find({ post: new mongoose.Types.ObjectId(postId), parentComment: null })
       .populate('author', 'username avatar')
-      .populate({
-        path: 'replies',
-        populate: {
-          path: 'author',
-          select: 'username avatar'
-        }
-      })
+      // .populate({
+      //   path: 'replies',
+      //   populate: {
+      //     path: 'author',
+      //     select: 'username avatar'
+      //   }
+      // })
       .sort({ createdAt: 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+    
+    const comments = [];
+    for (let c of parentComments) {
+      const obj = c.toObject();
+      obj.replies = await getReplies(c._id);
+      comments.push(obj);
+    }
 
     const total = await Comment.countDocuments({ post: new mongoose.Types.ObjectId(postId), parentComment: null });
 
