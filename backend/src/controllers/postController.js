@@ -110,6 +110,11 @@ const getPost = async (req, res) => {
 // @access  Private
 const createPost = async (req, res) => {
   try {
+    console.log("req.user =", req.user);
+    console.log("BODY RECEIVED:", req.body);
+    console.log("FILE RECEIVED:", req.file);
+
+
     const { title, content, tags, category } = req.body;
 
     const post = await Post.create({
@@ -117,6 +122,7 @@ const createPost = async (req, res) => {
       content,
       tags: tags || [],
       category: category || 'general',
+      image: req.file ? `/uploads/${req.file.filename}` : null,
       author: req.user.id
     });
 
@@ -125,6 +131,7 @@ const createPost = async (req, res) => {
 
     res.status(201).json(populatedPost);
   } catch (error) {
+    console.error('createPost error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -134,7 +141,7 @@ const createPost = async (req, res) => {
 // @access  Private
 const updatePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    let post = await Post.findById(req.params.id);
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
@@ -145,14 +152,29 @@ const updatePost = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to update this post' });
     }
 
-    const updatedPost = await Post.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('author', 'username avatar');
+    // const updatedPost = await Post.findByIdAndUpdate(
+    //   req.params.id,
+    //   req.body,
+    //   { new: true, runValidators: true }
+    // ).populate('author', 'username avatar');
 
-    res.json(updatedPost);
+    post.title = req.body.title || post.title;
+    post.content = req.body.content || post.content;
+    post.category = req.body.category || post.category;
+    post.tags = req.body.tags ? JSON.parse(req.body.tags) : post.tags;
+
+    if (req.file) {
+      post.image = `/uploads/${req.file.filename}`;
+    }
+
+    const updatedPost = await post.save();
+    const populatedPost = await Post.findById(updatedPost._id)
+      .populate('author', 'username avatar');
+
+    // res.json(updatedPost);
+    res.json(populatedPost);
   } catch (error) {
+    console.error('updatePost error:', error);
     res.status(500).json({ message: error.message });
   }
 };

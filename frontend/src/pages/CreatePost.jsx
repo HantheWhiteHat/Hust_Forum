@@ -6,6 +6,8 @@ import api from '../api/api'
 
 const CreatePost = () => {
   const [loading, setLoading] = useState(false)
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { errors }, watch } = useForm()
 
@@ -20,18 +22,42 @@ const CreatePost = () => {
         ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
         : []
 
-      const postData = {
-        ...data,
-        tags: processedTags
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("content", data.content);
+      formData.append("category", data.category);
+      formData.append("tags", JSON.stringify(processedTags));
+
+      if (image) {
+        formData.append("image", image);
       }
 
-      const response = await api.post('/posts', postData)
+      // const postData = {
+      //   ...data,
+      //   tags: processedTags
+      // }
+      const token = localStorage.getItem('token');
+
+      const response = await api.post('/posts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
+      })
       toast.success('Post created successfully!')
       navigate(`/post/${response.data._id}`)
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create post')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      setPreview(URL.createObjectURL(file));
     }
   }
 
@@ -111,6 +137,30 @@ const CreatePost = () => {
             <p className="text-sm text-gray-500 mt-1">
               Separate multiple tags with commas
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Image
+            </label>
+            
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="input"
+            />
+
+            {preview && (
+              <div className="mt-3">
+                <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                <img
+                  src={preview}
+                  className="w-64 h-40 object-cover rounded-md border"
+                  alt="preview"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-4">
