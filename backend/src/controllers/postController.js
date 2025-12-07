@@ -63,6 +63,7 @@ const getPosts = async (req, res) => {
 // @access  Public
 const getPost = async (req, res) => {
   try {
+    console.log('Fetching post with ID:', req.params.id);
     const post = await Post.findById(req.params.id)
       .populate('author', 'username avatar reputation')
       .populate({
@@ -72,6 +73,7 @@ const getPost = async (req, res) => {
           select: 'username avatar'
         }
       });
+    console.log('Found post:', post);
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
@@ -102,10 +104,10 @@ const createPost = async (req, res) => {
       author: req.user.id
     });
 
-    const populatedPost = await Post.findById(post._id)
-      .populate('author', 'username avatar');
-
-    res.status(201).json(populatedPost);
+    // Directly return the created post. The frontend will re-fetch
+    // for populated data on the detail page anyway.
+    // This avoids a potential race condition with the database.
+    res.status(201).json(post);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

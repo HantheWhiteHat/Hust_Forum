@@ -8,6 +8,8 @@ import Register from './pages/Register'
 import PostDetail from './pages/PostDetail'
 import CreatePost from './pages/CreatePost'
 import Profile from './pages/Profile'
+import ProtectedRoute from './components/ProtectedRoute'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
@@ -21,8 +23,23 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/post/:id" element={<PostDetail />} />
-              <Route path="/create-post" element={<CreatePost />} />
-              <Route path="/profile/:id" element={<Profile />} />
+              <Route
+                path="/create-post"
+                element={
+                  <ProtectedRoute>
+                    <CreatePost />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/:id"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
           <Toaster position="top-right" />

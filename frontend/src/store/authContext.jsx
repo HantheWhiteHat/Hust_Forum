@@ -64,16 +64,15 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = (authData) => {
-    localStorage.setItem('token', authData.token)
-    localStorage.setItem('user', JSON.stringify({
-      _id: authData._id,
-      username: authData.username,
-      email: authData.email
-    }))
+    // Destructure the token from the rest of the user data
+    const { token, ...user } = authData
+    
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(user))
     
     dispatch({
       type: 'LOGIN',
-      payload: { user: authData, token: authData.token }
+      payload: { user, token }
     })
   }
 
