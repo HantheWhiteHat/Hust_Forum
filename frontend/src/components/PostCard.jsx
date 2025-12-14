@@ -2,7 +2,12 @@ import { Link } from 'react-router-dom'
 import { Heart, MessageCircle, Eye, Calendar } from 'lucide-react'
 
 const PostCard = ({ post }) => {
-  const BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+
+  const handleImageError = (e) => {
+    e.currentTarget.style.display = 'none'
+  }
 
   return (
     <article className="card hover:shadow-md transition-shadow">
@@ -37,8 +42,8 @@ const PostCard = ({ post }) => {
         {post.image && (
           <img
             src={`${BASE_URL}${post.image}`}
-            // src={post.image}
             alt={post.title}
+            onError={handleImageError}
             className="max-w-full h-auto object-contain rounded-lg mb-4"
           />
         )}
@@ -97,4 +102,3 @@ const PostCard = ({ post }) => {
 }
 
 export default PostCard
-

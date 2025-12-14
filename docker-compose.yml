@@ -26,13 +26,18 @@ services:
       - JWT_SECRET=your_super_secret_jwt_key_here
       - JWT_EXPIRE=7d
       - CORS_ORIGIN=http://localhost:5173
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - mongodb
     networks:
       - bkforum-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:3000/api
     container_name: bkforum-frontend
     restart: unless-stopped
     ports:
@@ -46,8 +51,8 @@ services:
 
 volumes:
   mongodb_data:
+  uploads_data:
 
 networks:
   bkforum-network:
     driver: bridge
-

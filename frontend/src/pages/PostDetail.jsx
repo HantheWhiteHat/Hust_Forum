@@ -11,7 +11,11 @@ const PostDetail = () => {
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
-  const BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+  const handleImageError = (e) => {
+    e.currentTarget.style.display = 'none'
+  }
 
   useEffect(() => {
     fetchPost()
@@ -124,6 +128,7 @@ const PostDetail = () => {
             <img
               src={`${BASE_URL}${post.image}`}
               alt={post.title}
+              onError={handleImageError}
               className="max-w-full h-auto object-contain rounded-lg mb-4"
             />
           </div>
@@ -203,4 +208,3 @@ const PostDetail = () => {
 }
 
 export default PostDetail
-
