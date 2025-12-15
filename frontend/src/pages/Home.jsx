@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import api from '../api/api'
 import PostCard from '../components/PostCard'
-
 const Home = () => {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -13,6 +13,8 @@ const Home = () => {
     search: '',
     sort: 'newest'
   })
+  const [searchInput, setSearchInput] = useState('')
+  const [categoryInput, setCategoryInput] = useState('')
 
   useEffect(() => {
     fetchPosts()
@@ -31,8 +33,18 @@ const Home = () => {
     }
   }
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
+  const applyFilters = (event) => {
+    if (event) event.preventDefault()
+    setFilters(prev => ({
+      ...prev,
+      page: 1,
+      search: searchInput.trim(),
+      category: categoryInput
+    }))
+  }
+
+  const handleSortChange = (value) => {
+    setFilters(prev => ({ ...prev, sort: value, page: 1 }))
   }
 
   const handlePageChange = (page) => {
@@ -61,61 +73,76 @@ const Home = () => {
 
       {/* Filters */}
       <div className="bg-white p-6 rounded-xl shadow-xl mb-8 border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search posts..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="input"
-            />
+        <form onSubmit={applyFilters}>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search
+              </label>
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  placeholder="Search posts..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="input flex-1"
+                />
+                <button
+                  type="submit"
+                  className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition duration-150"
+                >
+                  <Search className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={categoryInput}
+                onChange={(e) => setCategoryInput(e.target.value)}
+                className="input"
+              >
+                <option value="">All Categories</option>
+                <option value="general">General</option>
+                <option value="academic">Academic</option>
+                <option value="technology">Technology</option>
+                <option value="sports">Sports</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Sort By
+              </label>
+              <select
+                value={filters.sort}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="input"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="popular">Most Popular</option>
+                <option value="most_viewed">Most Viewed</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput('')
+                  setCategoryInput('')
+                  setFilters({ page: 1, category: '', search: '', sort: 'newest' })
+                }}
+                className="w-full py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150"
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={filters.category}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="input"
-            >
-              <option value="">All Categories</option>
-              <option value="general">General</option>
-              <option value="academic">Academic</option>
-              <option value="technology">Technology</option>
-              <option value="sports">Sports</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Sort By
-            </label>
-            <select
-              value={filters.sort}
-              onChange={(e) => handleFilterChange('sort', e.target.value)}
-              className="input"
-            >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="popular">Most Popular</option>
-              <option value="most_viewed">Most Viewed</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ page: 1, category: '', search: '', sort: 'newest' })}
-              className="w-full py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
+        </form>
       </div>
 
       {/* Posts */}

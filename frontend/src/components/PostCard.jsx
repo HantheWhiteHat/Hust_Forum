@@ -39,20 +39,8 @@ const PostCard = ({ post }) => {
           {post.title}
         </h2>
 
-        {post.image && (
-          <img
-            src={`${BASE_URL}${post.image}`}
-            alt={post.title}
-            onError={handleImageError}
-            className="max-w-full h-auto object-contain rounded-lg mb-4"
-          />
-        )}
-        
         <p className="text-gray-600 mb-4 line-clamp-3">
-          {post.content.length > 200 
-            ? `${post.content.substring(0, 200)}...` 
-            : post.content
-          }
+          {post.content}
         </p>
       </Link>
 
