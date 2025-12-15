@@ -36,10 +36,6 @@ const commentSchema = new mongoose.Schema({
   editedAt: {
     type: Date
   },
-  replies: [{
-    type: mongoose.Schema.ObjectId,
-    ref: 'Comment'
-  }]
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

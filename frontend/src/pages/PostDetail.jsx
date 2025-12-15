@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Heart, MessageCircle, Eye, ArrowLeft } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { Heart, MessageCircle, Eye, ArrowLeft, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import api from '../api/api'
 import CommentTree from '../components/CommentTree'
+import { useAuth } from '../store/authContext'
 
 const PostDetail = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
   const handleImageError = (e) => {
@@ -73,6 +78,25 @@ const PostDetail = () => {
     }
   }
 
+  const handleDelete = async () => {
+    if (!post || !user || post.author._id !== user._id) return
+
+    const confirmed = window.confirm('Are you sure you want to delete this post?')
+    if (!confirmed) return
+
+    try {
+      setDeleting(true)
+      await api.delete(`/posts/${post._id}`)
+      toast.success('Post deleted')
+      navigate('/')
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      toast.error(error.response?.data?.message || 'Failed to delete post')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -116,9 +140,22 @@ const PostDetail = () => {
               </p>
             </div>
           </div>
-          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-            {post.category}
-          </span>
+          <div className="flex items-center space-x-3">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+              {post.category}
+            </span>
+
+            {user && post.author._id === user._id && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center space-x-1 text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <h1 className="text-2xl font-bold mb-4">{post.title}</h1>

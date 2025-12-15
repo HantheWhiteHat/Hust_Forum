@@ -22,12 +22,15 @@ app.use(helmet({
 }));
 
 // Rate limiting
+// move this after helmet
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 1000,                // higher for dev
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // let preflights through
 });
 app.use(limiter);
-
 // CORS
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
