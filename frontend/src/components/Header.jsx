@@ -15,8 +15,13 @@ const Header = () => {
     <header className="bg-white sticky shadow-md top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-3">
         <div className="flex items-center justify-between">
-          <Link to="/" className="text-3xl font-extrabold text-indigo-700 tracking-tight transition duration-300 hover:text-indigo-600">
-            BK Forum
+          <Link to="/" className="flex items-center space-x-3 text-3xl font-extrabold text-red-600 tracking-tight transition duration-300 hover:text-red-700">
+            <img
+              src="/favico.png"
+              alt="BK Forum"
+              className="w-10 h-10 rounded"
+            />
+            <span>BK FORUM</span>
           </Link>
 
           <div className="flex items-center space-x-6">
