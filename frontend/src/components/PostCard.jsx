@@ -2,6 +2,13 @@ import { Link } from 'react-router-dom'
 import { Heart, MessageCircle, Eye, Calendar } from 'lucide-react'
 
 const PostCard = ({ post }) => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+
+  const handleImageError = (e) => {
+    e.currentTarget.style.display = 'none'
+  }
+
   return (
     <article className="card hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
@@ -31,12 +38,9 @@ const PostCard = ({ post }) => {
         <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 mb-3">
           {post.title}
         </h2>
-        
+
         <p className="text-gray-600 mb-4 line-clamp-3">
-          {post.content.length > 200 
-            ? `${post.content.substring(0, 200)}...` 
-            : post.content
-          }
+          {post.content}
         </p>
       </Link>
 
@@ -86,4 +90,3 @@ const PostCard = ({ post }) => {
 }
 
 export default PostCard
-

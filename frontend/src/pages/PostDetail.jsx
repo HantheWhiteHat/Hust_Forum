@@ -11,6 +11,11 @@ const PostDetail = () => {
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+  const handleImageError = (e) => {
+    e.currentTarget.style.display = 'none'
+  }
 
   useEffect(() => {
     fetchPost()
@@ -88,6 +93,7 @@ const PostDetail = () => {
   }
 
   return (
+
     <div className="max-w-4xl mx-auto">
       <Link
         to="/"
@@ -116,6 +122,17 @@ const PostDetail = () => {
         </div>
 
         <h1 className="text-2xl font-bold mb-4">{post.title}</h1>
+
+        {post.image && (
+          <div className="flex justify-center my-6">
+            <img
+              src={`${BASE_URL}${post.image}`}
+              alt={post.title}
+              onError={handleImageError}
+              className="max-w-full h-auto object-contain rounded-lg mb-4"
+            />
+          </div>
+        )}
         
         <div className="prose max-w-none mb-6">
           <p className="whitespace-pre-wrap">{post.content}</p>
@@ -178,7 +195,11 @@ const PostDetail = () => {
 
         <div className="space-y-4">
           {comments.map((comment) => (
-            <CommentTree key={comment._id} comment={comment} />
+            <CommentTree 
+              key={comment._id} 
+              comment={comment}
+              onReplySuccess={fetchComments} 
+            />
           ))}
         </div>
       </div>
@@ -187,4 +208,3 @@ const PostDetail = () => {
 }
 
 export default PostDetail
-

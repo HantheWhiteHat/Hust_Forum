@@ -1,5 +1,21 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
+const mongoose = require('mongoose');
+
+async function getReplies(commentId) {
+  const replies = await Comment.find({ parentComment: commentId })
+    .populate('author', 'username avatar')
+    .sort({ createdAt: 1 });
+
+  // fetch replies of replies
+  for (let reply of replies) {
+    reply.replies = await getReplies(reply._id); // recursive
+  }
+
+  return replies;
+}
+
+
 
 // @desc    Get comments for a post
 // @route   GET /api/comments/post/:postId
@@ -9,20 +25,31 @@ const getComments = async (req, res) => {
     const { postId } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
-    const comments = await Comment.find({ post: postId, parentComment: null })
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid post ID format" });
+    }
+
+    const parentComments = await Comment.find({ post: new mongoose.Types.ObjectId(postId), parentComment: null })
       .populate('author', 'username avatar')
-      .populate({
-        path: 'replies',
-        populate: {
-          path: 'author',
-          select: 'username avatar'
-        }
-      })
+      // .populate({
+      //   path: 'replies',
+      //   populate: {
+      //     path: 'author',
+      //     select: 'username avatar'
+      //   }
+      // })
       .sort({ createdAt: 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+    
+    const comments = [];
+    for (let c of parentComments) {
+      const obj = c.toObject();
+      obj.replies = await getReplies(c._id);
+      comments.push(obj);
+    }
 
-    const total = await Comment.countDocuments({ post: postId, parentComment: null });
+    const total = await Comment.countDocuments({ post: new mongoose.Types.ObjectId(postId), parentComment: null });
 
     res.json({
       comments,
@@ -33,6 +60,8 @@ const getComments = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Error fetching comments:", error.stack);
+
     res.status(500).json({ message: error.message });
   }
 };

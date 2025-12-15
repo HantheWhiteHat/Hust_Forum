@@ -17,7 +17,9 @@ const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -32,9 +34,12 @@ app.use(cors({
   credentials: true
 }));
 
+// Static files
+app.use('/uploads', express.static('uploads'));
+
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);

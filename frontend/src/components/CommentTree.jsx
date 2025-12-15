@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Heart, Reply, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api/api'
 
-const CommentTree = ({ comment, onReply }) => {
+const CommentTree = ({ comment, onReplySuccess }) => {
   const [showReplies, setShowReplies] = useState(true)
   const [replies, setReplies] = useState(comment.replies || [])
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [submittingReply, setSubmittingReply] = useState(false)
+
+  useEffect(() => {
+    setReplies(comment.replies || [])
+  }, [comment.replies])
 
   const handleReply = async (e) => {
     e.preventDefault()
@@ -24,6 +28,10 @@ const CommentTree = ({ comment, onReply }) => {
       setReplies(prev => [...prev, response.data])
       setReplyText('')
       setShowReplyForm(false)
+
+      if (onReplySuccess) {
+        onReplySuccess()
+      }
     } catch (error) {
       console.error('Error submitting reply:', error)
     } finally {
@@ -47,12 +55,12 @@ const CommentTree = ({ comment, onReply }) => {
     <div className="border-l-2 border-gray-200 pl-4">
       <div className="flex items-start space-x-3">
         <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-bold">
-          {comment.author.username.charAt(0).toUpperCase()}
+          {comment.author?.username?.charAt(0).toUpperCase() || '?'}
         </div>
         
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <span className="font-medium text-gray-900">{comment.author.username}</span>
+            <span className="font-medium text-gray-900">{comment.author?.username || 'unknown'}</span>
             <span className="text-sm text-gray-500">
               {new Date(comment.createdAt).toLocaleDateString()}
             </span>
@@ -128,7 +136,11 @@ const CommentTree = ({ comment, onReply }) => {
               {showReplies && (
                 <div className="space-y-4">
                   {replies.map((reply) => (
-                    <CommentTree key={reply._id} comment={reply} />
+                    <CommentTree 
+                      key={reply._id} 
+                      comment={reply} 
+                      onReplySuccess={onReplySuccess}
+                    />
                   ))}
                 </div>
               )}
