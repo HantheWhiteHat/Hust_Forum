@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, MessageCircle, Eye, Calendar } from 'lucide-react'
+import { MessageCircle, Eye, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 
 const PostCard = ({ post }) => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -9,84 +9,102 @@ const PostCard = ({ post }) => {
     e.currentTarget.style.display = 'none'
   }
 
+  // Format time difference
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000)
+    let interval = seconds / 31536000
+    if (interval > 1) return Math.floor(interval) + 'y'
+    interval = seconds / 2592000
+    if (interval > 1) return Math.floor(interval) + 'mo'
+    interval = seconds / 86400
+    if (interval > 1) return Math.floor(interval) + 'd'
+    interval = seconds / 3600
+    if (interval > 1) return Math.floor(interval) + 'h'
+    interval = seconds / 60
+    if (interval > 1) return Math.floor(interval) + 'm'
+    return Math.floor(seconds) + 's'
+  }
+
   return (
-    <article className="card hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {post.author.username.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <Link
-              to={`/profile/${post.author._id}`}
-              className="font-medium text-gray-900 hover:text-blue-600"
-            >
-              {post.author.username}
-            </Link>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Calendar className="w-3 h-3" />
-              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-            </div>
-          </div>
-        </div>
-        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-          {post.category}
+    <article className="flex bg-white border border-gray-300 hover:border-gray-400 transition-all duration-150 rounded overflow-hidden">
+      {/* Vote Section */}
+      <div className="w-10 bg-gray-50 flex flex-col items-center py-2 px-1">
+        <button className="vote-btn text-gray-400 hover:text-[#FF4500] hover:bg-red-50">
+          <ArrowUp className="w-5 h-5" />
+        </button>
+        <span className="text-xs font-bold text-gray-700 my-1">
+          {post.upvotes || 0}
         </span>
+        <button className="vote-btn text-gray-400 hover:text-[#7193FF] hover:bg-blue-50">
+          <ArrowDown className="w-5 h-5" />
+        </button>
       </div>
 
-      <Link to={`/post/${post._id}`} className="block group">
-        <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 mb-3">
-          {post.title}
-        </h2>
-
-        <p className="text-gray-600 mb-4 line-clamp-3">
-          {post.content}
-        </p>
-
-        {/* Media preview */}
-        {post.image && (
-          <div className="mb-4">
-            {post.mediaType === 'video' ? (
-              <video
-                src={`${BASE_URL}${post.image}`}
-                className="w-full max-h-80 rounded-lg object-cover"
-                controls
-                preload="metadata"
-              />
-            ) : (
-              <img
-                src={`${BASE_URL}${post.image}`}
-                alt={post.title}
-                onError={handleImageError}
-                className="w-full max-h-80 rounded-lg object-cover"
-              />
-            )}
+      {/* Content Section */}
+      <div className="flex-1 p-3">
+        <Link to={`/post/${post._id}`} className="block">
+          {/* Header */}
+          <div className="flex items-center space-x-2 text-xs text-gray-500 mb-1">
+            <span className="category-badge">
+              r/{post.category}
+            </span>
+            <span>•</span>
+            <span>Posted by u/{post.author.username}</span>
+            <span>•</span>
+            <span className="flex items-center space-x-1">
+              <Clock className="w-3 h-3" />
+              <span>{getTimeAgo(post.createdAt)} ago</span>
+            </span>
           </div>
-        )}
-      </Link>
 
-      <div className="flex items-center justify-between pt-4 border-t">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1 text-gray-600">
-            <Heart className="w-4 h-4" />
-            <span>{post.upvotes}</span>
-          </div>
-          <div className="flex items-center space-x-1 text-gray-600">
+          {/* Title */}
+          <h2 className="text-base font-medium text-gray-900 hover:text-[#FF4500] mb-1.5 leading-tight">
+            {post.title}
+          </h2>
+
+          {/* Content Preview */}
+          {post.content && (
+            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+              {post.content}
+            </p>
+          )}
+
+          {/* Media preview */}
+          {post.image && (
+            <div className="mb-2">
+              {post.mediaType === 'video' ? (
+                <video
+                  src={`${BASE_URL}${post.image}`}
+                  className="w-full max-h-64 rounded object-cover"
+                  preload="metadata"
+                />
+              ) : (
+                <img
+                  src={`${BASE_URL}${post.image}`}
+                  alt={post.title}
+                  onError={handleImageError}
+                  className="w-full max-h-64 rounded object-cover"
+                />
+              )}
+            </div>
+          )}
+        </Link>
+
+        {/* Action Bar */}
+        <div className="flex items-center space-x-4 mt-2">
+          <Link
+            to={`/post/${post._id}`}
+            className="action-icon"
+          >
             <MessageCircle className="w-4 h-4" />
-            <span>{post.commentCount}</span>
-          </div>
-          <div className="flex items-center space-x-1 text-gray-600">
+            <span>{post.commentCount || 0} Comments</span>
+          </Link>
+
+          <div className="action-icon">
             <Eye className="w-4 h-4" />
-            <span>{post.views}</span>
+            <span>{post.views || 0} Views</span>
           </div>
         </div>
-
-        <Link
-          to={`/post/${post._id}`}
-          className="text-blue-600 hover:text-blue-800 font-medium"
-        >
-          Read more →
-        </Link>
       </div>
     </article>
   )
