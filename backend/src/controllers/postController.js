@@ -10,19 +10,19 @@ const mongoose = require('mongoose');
 const getPosts = async (req, res) => {
   try {
     const { page = 1, limit = 10, category, search, sort = 'newest' } = req.query;
-    
+
     let query = {};
-    
+
     // Filter by category
     if (category) {
       query.category = category;
     }
-    
+
     // Search functionality
     if (search) {
       query.$text = { $search: search };
     }
-    
+
     // Sort options
     let sortOption = {};
     switch (sort) {
@@ -41,15 +41,15 @@ const getPosts = async (req, res) => {
       default:
         sortOption = { createdAt: -1 };
     }
-    
+
     const posts = await Post.find(query)
       .populate('author', 'username avatar')
       .sort(sortOption)
       .limit(limit * 1)
       .skip((page - 1) * limit);
-    
+
     const total = await Post.countDocuments(query);
-    
+
     res.json({
       posts,
       pagination: paginate(page, limit, total)
@@ -72,13 +72,13 @@ const getPost = async (req, res) => {
 
     const post = await Post.findById(req.params.id)
       .populate('author', 'username avatar reputation')
-      // .populate({
-      //   path: 'comments',
-      //   populate: {
-      //     path: 'author',
-      //     select: 'username avatar'
-      //   }
-      // });
+    // .populate({
+    //   path: 'comments',
+    //   populate: {
+    //     path: 'author',
+    //     select: 'username avatar'
+    //   }
+    // });
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
@@ -114,8 +114,17 @@ const createPost = async (req, res) => {
     console.log("BODY RECEIVED:", req.body);
     console.log("FILE RECEIVED:", req.file);
 
+    const { title, content, tags, category, mediaType } = req.body;
 
-    const { title, content, tags, category } = req.body;
+    // Xác định mediaType từ file nếu có
+    let detectedMediaType = null;
+    if (req.file) {
+      if (req.file.mimetype.startsWith('video/')) {
+        detectedMediaType = 'video';
+      } else if (req.file.mimetype.startsWith('image/')) {
+        detectedMediaType = 'image';
+      }
+    }
 
     const post = await Post.create({
       title,
@@ -123,6 +132,7 @@ const createPost = async (req, res) => {
       tags: tags || [],
       category: category || 'general',
       image: req.file ? `/uploads/${req.file.filename}` : null,
+      mediaType: mediaType || detectedMediaType,
       author: req.user.id
     });
 
@@ -165,6 +175,12 @@ const updatePost = async (req, res) => {
 
     if (req.file) {
       post.image = `/uploads/${req.file.filename}`;
+      // Cập nhật mediaType dựa trên file mới
+      if (req.file.mimetype.startsWith('video/')) {
+        post.mediaType = 'video';
+      } else if (req.file.mimetype.startsWith('image/')) {
+        post.mediaType = 'image';
+      }
     }
 
     const updatedPost = await post.save();

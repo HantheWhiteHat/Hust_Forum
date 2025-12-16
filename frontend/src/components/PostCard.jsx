@@ -42,6 +42,27 @@ const PostCard = ({ post }) => {
         <p className="text-gray-600 mb-4 line-clamp-3">
           {post.content}
         </p>
+
+        {/* Media preview */}
+        {post.image && (
+          <div className="mb-4">
+            {post.mediaType === 'video' ? (
+              <video
+                src={`${BASE_URL}${post.image}`}
+                className="w-full max-h-80 rounded-lg object-cover"
+                controls
+                preload="metadata"
+              />
+            ) : (
+              <img
+                src={`${BASE_URL}${post.image}`}
+                alt={post.title}
+                onError={handleImageError}
+                className="w-full max-h-80 rounded-lg object-cover"
+              />
+            )}
+          </div>
+        )}
       </Link>
 
       <div className="flex items-center justify-between pt-4 border-t">
@@ -59,7 +80,7 @@ const PostCard = ({ post }) => {
             <span>{post.views}</span>
           </div>
         </div>
-        
+
         <Link
           to={`/post/${post._id}`}
           className="text-blue-600 hover:text-blue-800 font-medium"

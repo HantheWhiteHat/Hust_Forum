@@ -160,17 +160,30 @@ const PostDetail = () => {
 
         <h1 className="text-2xl font-bold mb-4">{post.title}</h1>
 
+        {/* Media display - image or video */}
         {post.image && (
           <div className="flex justify-center my-6">
-            <img
-              src={`${BASE_URL}${post.image}`}
-              alt={post.title}
-              onError={handleImageError}
-              className="max-w-full h-auto object-contain rounded-lg mb-4"
-            />
+            {post.mediaType === 'video' ? (
+              <video
+                src={`${BASE_URL}${post.image}`}
+                controls
+                preload="metadata"
+                className="max-w-full h-auto rounded-lg"
+                style={{ maxHeight: '500px' }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img
+                src={`${BASE_URL}${post.image}`}
+                alt={post.title}
+                onError={handleImageError}
+                className="max-w-full h-auto object-contain rounded-lg mb-4"
+              />
+            )}
           </div>
         )}
-        
+
         <div className="prose max-w-none mb-6">
           <p className="whitespace-pre-wrap">{post.content}</p>
         </div>
@@ -199,7 +212,7 @@ const PostDetail = () => {
       {/* Comments Section */}
       <div className="card">
         <h3 className="text-lg font-semibold mb-4">Comments ({post.commentCount})</h3>
-        
+
         <form onSubmit={handleSubmitComment} className="mb-6">
           <textarea
             value={newComment}
@@ -219,10 +232,10 @@ const PostDetail = () => {
 
         <div className="space-y-4">
           {comments.map((comment) => (
-            <CommentTree 
-              key={comment._id} 
+            <CommentTree
+              key={comment._id}
               comment={comment}
-              onReplySuccess={fetchComments} 
+              onReplySuccess={fetchComments}
             />
           ))}
         </div>
