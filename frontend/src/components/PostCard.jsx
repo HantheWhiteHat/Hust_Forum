@@ -44,24 +44,6 @@ const PostCard = ({ post }) => {
         </p>
       </Link>
 
-      {post.tags && post.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {post.tags.slice(0, 3).map((tag, index) => (
-            <span
-              key={index}
-              className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded"
-            >
-              #{tag}
-            </span>
-          ))}
-          {post.tags.length > 3 && (
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded">
-              +{post.tags.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="flex items-center justify-between pt-4 border-t">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-1 text-gray-600">
