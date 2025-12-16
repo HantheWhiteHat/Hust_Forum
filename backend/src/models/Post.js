@@ -10,7 +10,7 @@ const postSchema = new mongoose.Schema({
   content: {
     type: String,
     required: [true, 'Please add content'],
-    maxlength: [10000, 'Content cannot be more than 10000 characters']
+    maxlength: [100000, 'Content cannot be more than 100000 characters']
   },
   author: {
     type: mongoose.Schema.ObjectId,
