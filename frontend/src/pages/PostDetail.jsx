@@ -4,6 +4,7 @@ import { ArrowUp, ArrowDown, MessageCircle, Eye, ArrowLeft, Trash2 } from 'lucid
 import { toast } from 'react-hot-toast'
 import api from '../api/api'
 import CommentTree from '../components/CommentTree'
+import MediaGallery from '../components/MediaGallery'
 import { useAuth } from '../store/authContext'
 
 const PostDetail = () => {
@@ -99,6 +100,34 @@ const PostDetail = () => {
   // Check if content is long (more than 500 characters of text)
   const isLongContent = post && post.content && post.content.length > 500
 
+  // Process media content: replace blob URLs with server URLs
+  const processMediaContent = (htmlContent) => {
+    if (!htmlContent || !post) return htmlContent
+
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
+
+    // Find all media elements (img and video)
+    const mediaElements = tempDiv.querySelectorAll('img, video')
+
+    mediaElements.forEach((element) => {
+      const src = element.getAttribute('src')
+
+      // If it's a blob URL, replace with actual server URL
+      if (src && src.startsWith('blob:')) {
+        // Use post.image as the main media source
+        if (post.image) {
+          element.setAttribute('src', `${BASE_URL}${post.image}`)
+        }
+      } else if (src && !src.startsWith('http')) {
+        // If it's a relative path, make it absolute
+        element.setAttribute('src', `${BASE_URL}${src}`)
+      }
+    })
+
+    return tempDiv.innerHTML
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -177,11 +206,32 @@ const PostDetail = () => {
             {/* Title */}
             <h1 className="text-2xl font-bold mb-4 text-gray-900">{post.title}</h1>
 
+            {/* Media Gallery - NEW: Handle both new media array and old single image */}
+            {post.media && post.media.length > 0 ? (
+              <MediaGallery media={post.media} />
+            ) : post.image ? (
+              <div className="my-4 bg-black rounded-lg overflow-hidden">
+                {post.mediaType === 'video' ? (
+                  <video
+                    src={`${BASE_URL}${post.image}`}
+                    controls
+                    className="w-full max-h-[600px] object-contain"
+                  />
+                ) : (
+                  <img
+                    src={`${BASE_URL}${post.image}`}
+                    alt={post.title}
+                    className="w-full max-h-[600px] object-contain"
+                  />
+                )}
+              </div>
+            ) : null}
+
             {/* Content with HTML formatting and Read More */}
             <div className="mb-4">
               <div
                 className={`post-content ${!isExpanded && isLongContent ? 'post-content-collapsed' : ''}`}
-                dangerouslySetInnerHTML={{ __html: post.content }}
+                dangerouslySetInnerHTML={{ __html: processMediaContent(post.content) }}
               />
 
               {isLongContent && !isExpanded && (
@@ -252,10 +302,10 @@ const PostDetail = () => {
             />
           )}
         </div>
-      </div>
+      </div >
 
       {/* CSS for post content */}
-      <style>{`
+      < style > {`
         .post-content {
           font-size: 0.875rem;
           line-height: 1.5;
@@ -349,8 +399,8 @@ const PostDetail = () => {
           border-radius: 0.25rem;
           transition: all 0.15s;
         }
-      `}</style>
-    </div>
+      `}</style >
+    </div >
   )
 }
 

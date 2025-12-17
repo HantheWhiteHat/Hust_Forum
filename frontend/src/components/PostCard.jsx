@@ -25,6 +25,14 @@ const PostCard = ({ post }) => {
     return Math.floor(seconds) + 's'
   }
 
+  // Strip HTML tags for preview
+  const stripHtmlTags = (html) => {
+    if (!html) return ''
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    return tmp.textContent || tmp.innerText || ''
+  }
+
   return (
     <article className="flex bg-white border border-gray-300 hover:border-gray-400 transition-all duration-150 rounded overflow-hidden">
       {/* Vote Section */}
@@ -65,29 +73,47 @@ const PostCard = ({ post }) => {
           {/* Content Preview */}
           {post.content && (
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-              {post.content}
+              {stripHtmlTags(post.content)}
             </p>
           )}
 
-          {/* Media preview */}
-          {post.image && (
-            <div className="mb-2">
-              {post.mediaType === 'video' ? (
-                <video
-                  src={`${BASE_URL}${post.image}`}
-                  className="w-full max-h-64 rounded object-cover"
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  src={`${BASE_URL}${post.image}`}
-                  alt={post.title}
-                  onError={handleImageError}
-                  className="w-full max-h-64 rounded object-cover"
-                />
-              )}
-            </div>
-          )}
+          {/* Media preview - NEW: Support both media array and single image */}
+          {(() => {
+            // Get first media (prefer media array, fallback to image)
+            const firstMedia = post.media && post.media.length > 0
+              ? post.media[0]
+              : post.image
+                ? { filepath: post.image, mediaType: post.mediaType }
+                : null
+
+            if (!firstMedia) return null
+
+            return (
+              <div className="mb-2 relative">
+                {firstMedia.mediaType === 'video' ? (
+                  <video
+                    src={`${BASE_URL}${firstMedia.filepath}`}
+                    className="w-full max-h-64 rounded object-cover"
+                    preload="metadata"
+                  />
+                ) : (
+                  <img
+                    src={`${BASE_URL}${firstMedia.filepath}`}
+                    alt={post.title}
+                    onError={handleImageError}
+                    className="w-full max-h-64 rounded object-cover"
+                  />
+                )}
+
+                {/* Show media count badge if multiple */}
+                {post.media && post.media.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                    +{post.media.length - 1} more
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </Link>
 
         {/* Action Bar */}

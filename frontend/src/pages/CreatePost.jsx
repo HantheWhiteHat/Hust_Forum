@@ -46,6 +46,17 @@ const CreatePost = () => {
 
     // Insert media at cursor position
     const insertMediaAtCursor = (type) => {
+        // 🔧 FIX: Focus editor first to prevent duplicate when cursor in caption
+        if (editorRef.current) {
+            editorRef.current.focus()
+            // Small delay to ensure focus is set
+            setTimeout(() => {
+                openFileDialog(type)
+            }, 50)
+        }
+    }
+
+    const openFileDialog = (type) => {
         const input = document.createElement('input')
         input.type = 'file'
         input.accept = type === 'image' ? 'image/*' : 'video/*'
@@ -96,7 +107,7 @@ const CreatePost = () => {
                 mediaWrapper.appendChild(mediaElement)
                 mediaWrapper.appendChild(removeBtn)
 
-                // Create caption input
+                // Create caption input (PLAIN TEXT ONLY)
                 const captionWrapper = document.createElement('div')
                 captionWrapper.className = 'p-2'
 
@@ -105,15 +116,50 @@ const CreatePost = () => {
                 captionInput.placeholder = 'Add a caption (optional)'
                 captionInput.className = 'w-full px-2 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-orange-500'
                 captionInput.setAttribute('data-caption-for', mediaId)
+                // Prevent any formatting or special input
+                captionInput.setAttribute('autocomplete', 'off')
+                captionInput.setAttribute('spellcheck', 'false')
+                // Stop event propagation to prevent editor commands
+                captionInput.addEventListener('keydown', (e) => {
+                    e.stopPropagation() // Prevent Ctrl+B, Ctrl+I from reaching editor
+                })
+                captionInput.addEventListener('paste', (e) => {
+                    e.preventDefault()
+                    // Only paste plain text
+                    const text = e.clipboardData.getData('text/plain')
+                    captionInput.value = text.substring(0, 200) // Max 200 chars
+                })
 
                 captionWrapper.appendChild(captionInput)
 
                 container.appendChild(mediaWrapper)
                 container.appendChild(captionWrapper)
 
-                // Insert at cursor
+                // ✅ FIX: Always insert into editor, not at random cursor position
+                // This prevents inserting between title/category fields
+                if (!editorRef.current) return
+
+                // Check if cursor is inside editor
                 const selection = window.getSelection()
+                let insertIntoEditor = false
+
                 if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0)
+                    const container = range.commonAncestorContainer
+
+                    // Check if selection is inside editor or its descendants
+                    let node = container
+                    while (node && node !== document.body) {
+                        if (node === editorRef.current) {
+                            insertIntoEditor = true
+                            break
+                        }
+                        node = node.parentNode
+                    }
+                }
+
+                if (insertIntoEditor) {
+                    // Insert at cursor position if cursor is in editor
                     const range = selection.getRangeAt(0)
                     range.deleteContents()
                     range.insertNode(container)
@@ -125,6 +171,7 @@ const CreatePost = () => {
                     selection.removeAllRanges()
                     selection.addRange(newRange)
                 } else {
+                    // Otherwise append to end of editor
                     editorRef.current.appendChild(container)
                 }
 
@@ -143,27 +190,48 @@ const CreatePost = () => {
         try {
             setLoading(true)
 
-            // Get HTML content from editor
-            const htmlContent = editorRef.current.innerHTML
+            // Get HTML content from editor and CLEAN it
+            const rawHTML = editorRef.current.innerHTML
 
-            // Get captions
-            const captions = {}
-            Array.from(editorRef.current.querySelectorAll('[data-caption-for]')).forEach(input => {
-                const mediaId = input.getAttribute('data-caption-for')
-                captions[mediaId] = input.value
-            })
+            // 🧹 CLEAN: Remove caption input elements before saving
+            const cleanHTMLContent = (html) => {
+                const tempDiv = document.createElement('div')
+                tempDiv.innerHTML = html
+
+                // Remove all caption input wrappers
+                const captionWrappers = tempDiv.querySelectorAll('.media-block .p-2')
+                captionWrappers.forEach(wrapper => {
+                    // Check if it contains caption input
+                    const captionInput = wrapper.querySelector('[data-caption-for]')
+                    if (captionInput) {
+                        wrapper.remove() // Remove the entire wrapper
+                    }
+                })
+
+                return tempDiv.innerHTML
+            }
+
+            const htmlContent = cleanHTMLContent(rawHTML)
 
             const formData = new FormData()
             formData.append('title', data.title)
             formData.append('category', data.category)
-            formData.append('content', htmlContent) // Store HTML
-            formData.append('captions', JSON.stringify(captions))
+            formData.append('content', htmlContent) // Store CLEANED HTML
 
-            // Add media files
+            // ✅ NEW: Send ALL media files (not just first one)
             if (mediaFiles.length > 0) {
-                // For now, send first media (backend limitation)
-                formData.append('image', mediaFiles[0].file)
-                formData.append('mediaType', mediaFiles[0].type)
+                // Append all media files with same field name 'media'
+                mediaFiles.forEach((media) => {
+                    formData.append('media', media.file)
+                })
+
+                // Send captions as array in order
+                // 🔧 FIX: Query from editorRef instead of document
+                const captionsArray = mediaFiles.map(media => {
+                    const captionInput = editorRef.current.querySelector(`[data-caption-for="${media.id}"]`)
+                    return captionInput ? captionInput.value : ''
+                })
+                formData.append('captions', JSON.stringify(captionsArray))
             }
 
             const token = localStorage.getItem('token')
@@ -178,6 +246,7 @@ const CreatePost = () => {
             toast.success('Post created successfully!')
             navigate(`/post/${response.data._id}`)
         } catch (error) {
+            console.error('Create post error:', error)
             toast.error(error.response?.data?.message || 'Failed to create post')
         } finally {
             setLoading(false)

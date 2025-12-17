@@ -10,6 +10,7 @@ const userRoutes = require('./routes/users');
 const postRoutes = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
 const voteRoutes = require('./routes/votes');
+const mediaRoutes = require('./routes/media');
 
 // Import middlewares
 const errorHandler = require('./middlewares/errorHandler');
@@ -50,6 +51,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

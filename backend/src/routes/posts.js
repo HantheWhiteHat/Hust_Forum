@@ -1,16 +1,15 @@
 const express = require('express');
 const { getPosts, getPost, createPost, updatePost, deletePost } = require('../controllers/postController');
 const auth = require('../middlewares/auth');
-const { upload } = require('../middlewares/upload');
+const upload = require('../middlewares/upload');
 
 const router = express.Router();
 
 router.get('/', getPosts);
 router.get('/:id', getPost);
-// router.post('/', auth, createPost);
+router.post('/', auth, upload.array('media', 10), createPost); // Changed to array, max 10 files
 router.put('/:id', auth, updatePost);
 router.delete('/:id', auth, deletePost);
-router.post('/', auth, upload.single('image'), createPost);
 
 
 module.exports = router;
