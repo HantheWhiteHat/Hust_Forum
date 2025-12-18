@@ -1,6 +1,7 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const mongoose = require('mongoose');
+const { getIO } = require('../socket');
 
 async function getReplies(commentId) {
   const replies = await Comment.find({ parentComment: commentId })
@@ -101,6 +102,16 @@ const createComment = async (req, res) => {
     const populatedComment = await Comment.findById(comment._id)
       .populate('author', 'username avatar');
 
+    try {
+      const io = getIO();
+      io.to(`post:${postId}`).emit('comment:new', {
+        postId: postId.toString(),
+        comment: populatedComment,
+      });
+    } catch (emitError) {
+      console.error('Socket emit error (comment:new):', emitError.message);
+    }
+
     res.status(201).json(populatedComment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -132,6 +143,16 @@ const updateComment = async (req, res) => {
       },
       { new: true, runValidators: true }
     ).populate('author', 'username avatar');
+
+    try {
+      const io = getIO();
+      io.to(`post:${comment.post.toString()}`).emit('comment:updated', {
+        postId: comment.post.toString(),
+        comment: updatedComment,
+      });
+    } catch (emitError) {
+      console.error('Socket emit error (comment:updated):', emitError.message);
+    }
 
     res.json(updatedComment);
   } catch (error) {
@@ -167,6 +188,17 @@ const deleteComment = async (req, res) => {
 
     await Comment.findByIdAndDelete(req.params.id);
 
+    try {
+      const io = getIO();
+      io.to(`post:${comment.post.toString()}`).emit('comment:deleted', {
+        postId: comment.post.toString(),
+        commentId: comment._id.toString(),
+        parentCommentId: comment.parentComment ? comment.parentComment.toString() : null,
+      });
+    } catch (emitError) {
+      console.error('Socket emit error (comment:deleted):', emitError.message);
+    }
+
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -179,4 +211,3 @@ module.exports = {
   updateComment,
   deleteComment,
 };
-

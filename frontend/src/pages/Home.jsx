@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/api'
 import PostCard from '../components/PostCard'
+import { getSocket } from '../api/socket'
 
 const Home = () => {
   const [posts, setPosts] = useState([])
@@ -14,11 +15,7 @@ const Home = () => {
     sort: 'newest'
   })
 
-  useEffect(() => {
-    fetchPosts()
-  }, [filters])
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true)
       const response = await api.get('/posts', { params: filters })
@@ -29,7 +26,11 @@ const Home = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
+
+  useEffect(() => {
+    fetchPosts()
+  }, [fetchPosts])
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
@@ -38,6 +39,28 @@ const Home = () => {
   const handlePageChange = (page) => {
     setFilters(prev => ({ ...prev, page }))
   }
+
+  useEffect(() => {
+    const socket = getSocket()
+
+    const refresh = () => {
+      fetchPosts()
+    }
+
+    socket.on('post:new', refresh)
+    socket.on('post:updated', refresh)
+    socket.on('post:deleted', refresh)
+    socket.on('post:voted', refresh)
+    socket.on('post:viewed', refresh)
+
+    return () => {
+      socket.off('post:new', refresh)
+      socket.off('post:updated', refresh)
+      socket.off('post:deleted', refresh)
+      socket.off('post:voted', refresh)
+      socket.off('post:viewed', refresh)
+    }
+  }, [fetchPosts])
 
   if (loading) {
     return (
@@ -160,4 +183,3 @@ const Home = () => {
 }
 
 export default Home
-

@@ -2,6 +2,7 @@ const Vote = require('../models/Vote');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const User = require('../models/User');
+const { getIO } = require('../socket');
 
 // @desc    Vote on post or comment
 // @route   POST /api/votes
@@ -42,6 +43,19 @@ const createVote = async (req, res) => {
           post.downvotes += 1;
         }
         await post.save();
+
+        try {
+          const io = getIO();
+          const payload = {
+            postId: postId.toString(),
+            upvotes: post.upvotes,
+            downvotes: post.downvotes,
+          };
+          io.emit('post:voted', payload);
+          io.to(`post:${postId}`).emit('post:voted', payload);
+        } catch (emitError) {
+          console.error('Socket emit error (post:voted):', emitError.message);
+        }
       }
     } else {
       const comment = await Comment.findById(commentId);
@@ -52,6 +66,18 @@ const createVote = async (req, res) => {
           comment.downvotes += 1;
         }
         await comment.save();
+
+        try {
+          const io = getIO();
+          io.to(`post:${comment.post.toString()}`).emit('comment:voted', {
+            postId: comment.post.toString(),
+            commentId: comment._id.toString(),
+            upvotes: comment.upvotes,
+            downvotes: comment.downvotes,
+          });
+        } catch (emitError) {
+          console.error('Socket emit error (comment:voted):', emitError.message);
+        }
       }
     }
 
@@ -94,6 +120,19 @@ const updateVote = async (req, res) => {
           post.upvotes += 1;
         }
         await post.save();
+
+        try {
+          const io = getIO();
+          const payload = {
+            postId: vote.post.toString(),
+            upvotes: post.upvotes,
+            downvotes: post.downvotes,
+          };
+          io.emit('post:voted', payload);
+          io.to(`post:${vote.post.toString()}`).emit('post:voted', payload);
+        } catch (emitError) {
+          console.error('Socket emit error (post:voted update):', emitError.message);
+        }
       }
     } else if (vote.comment) {
       const comment = await Comment.findById(vote.comment);
@@ -106,6 +145,18 @@ const updateVote = async (req, res) => {
           comment.upvotes += 1;
         }
         await comment.save();
+
+        try {
+          const io = getIO();
+          io.to(`post:${comment.post.toString()}`).emit('comment:voted', {
+            postId: comment.post.toString(),
+            commentId: comment._id.toString(),
+            upvotes: comment.upvotes,
+            downvotes: comment.downvotes,
+          });
+        } catch (emitError) {
+          console.error('Socket emit error (comment:voted update):', emitError.message);
+        }
       }
     }
 
@@ -141,6 +192,19 @@ const deleteVote = async (req, res) => {
           post.downvotes -= 1;
         }
         await post.save();
+
+        try {
+          const io = getIO();
+          const payload = {
+            postId: vote.post.toString(),
+            upvotes: post.upvotes,
+            downvotes: post.downvotes,
+          };
+          io.emit('post:voted', payload);
+          io.to(`post:${vote.post.toString()}`).emit('post:voted', payload);
+        } catch (emitError) {
+          console.error('Socket emit error (post:voted delete):', emitError.message);
+        }
       }
     } else if (vote.comment) {
       const comment = await Comment.findById(vote.comment);
@@ -151,6 +215,18 @@ const deleteVote = async (req, res) => {
           comment.downvotes -= 1;
         }
         await comment.save();
+
+        try {
+          const io = getIO();
+          io.to(`post:${comment.post.toString()}`).emit('comment:voted', {
+            postId: comment.post.toString(),
+            commentId: comment._id.toString(),
+            upvotes: comment.upvotes,
+            downvotes: comment.downvotes,
+          });
+        } catch (emitError) {
+          console.error('Socket emit error (comment:voted delete):', emitError.message);
+        }
       }
     }
 
@@ -167,4 +243,3 @@ module.exports = {
   updateVote,
   deleteVote,
 };
-

@@ -57,7 +57,12 @@ const postSchema = new mongoose.Schema({
   image: {
     type: String,
     default: null
-  }
+  },
+  viewedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }]
 }, {
   timestamps: true
 });
@@ -71,4 +76,3 @@ postSchema.index({ upvotes: -1 });
 postSchema.index({ views: -1 });
 
 module.exports = mongoose.model('Post', postSchema);
-

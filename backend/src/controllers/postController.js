@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Comment = require('../models/Comment');
 const { paginate } = require('../utils/paginate');
 const mongoose = require('mongoose');
+const { getIO } = require('../socket');
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -44,6 +45,7 @@ const getPosts = async (req, res) => {
     
     const posts = await Post.find(query)
       .populate('author', 'username avatar')
+      .select('-viewedBy')
       .sort(sortOption)
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -88,14 +90,41 @@ const getPost = async (req, res) => {
       .populate('author', 'username avatar')
       .sort({ createdAt: 1 });
 
-    // Increment view count
-    if (!req.user || (req.user && req.user.id !== post.author._id.toString())) {
-      post.views += 1;
-      await post.save();
+    const currentUserId = req.user?._id?.toString();
+    const isAuthor = currentUserId && currentUserId === post.author._id.toString();
+
+    // Increment view count only once per authenticated user and never for author
+    if (currentUserId && !isAuthor) {
+      const viewedBy = Array.isArray(post.viewedBy) ? post.viewedBy : [];
+      const alreadyViewed = viewedBy.some(
+        (viewerId) => viewerId.toString() === currentUserId
+      );
+      if (!alreadyViewed) {
+        post.views += 1;
+        post.viewedBy = [...viewedBy, currentUserId];
+        await post.save();
+
+        try {
+          const io = getIO();
+          io.emit('post:viewed', {
+            postId: post._id.toString(),
+            views: post.views,
+          });
+          io.to(`post:${post._id.toString()}`).emit('post:viewed', {
+            postId: post._id.toString(),
+            views: post.views,
+          });
+        } catch (emitError) {
+          console.error('Socket emit error (post:viewed):', emitError.message);
+        }
+      }
     }
 
+    const postObj = post.toObject();
+    delete postObj.viewedBy;
+
     res.json({
-      ...post.toObject(),
+      ...postObj,
       comments
     });
   } catch (error) {
@@ -128,6 +157,13 @@ const createPost = async (req, res) => {
 
     const populatedPost = await Post.findById(post._id)
       .populate('author', 'username avatar');
+
+    try {
+      const io = getIO();
+      io.emit('post:new', populatedPost);
+    } catch (emitError) {
+      console.error('Socket emit error (post:new):', emitError.message);
+    }
 
     res.status(201).json(populatedPost);
   } catch (error) {
@@ -171,6 +207,13 @@ const updatePost = async (req, res) => {
     const populatedPost = await Post.findById(updatedPost._id)
       .populate('author', 'username avatar');
 
+    try {
+      const io = getIO();
+      io.emit('post:updated', populatedPost);
+    } catch (emitError) {
+      console.error('Socket emit error (post:updated):', emitError.message);
+    }
+
     // res.json(updatedPost);
     res.json(populatedPost);
   } catch (error) {
@@ -200,6 +243,13 @@ const deletePost = async (req, res) => {
 
     await Post.findByIdAndDelete(req.params.id);
 
+    try {
+      const io = getIO();
+      io.emit('post:deleted', { postId: req.params.id });
+    } catch (emitError) {
+      console.error('Socket emit error (post:deleted):', emitError.message);
+    }
+
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -213,4 +263,3 @@ module.exports = {
   updatePost,
   deletePost,
 };
-

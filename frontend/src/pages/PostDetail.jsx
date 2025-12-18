@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Heart, MessageCircle, Eye, ArrowLeft } from 'lucide-react'
 import api from '../api/api'
 import CommentTree from '../components/CommentTree'
+import { getSocket } from '../api/socket'
 
 const PostDetail = () => {
   const { id } = useParams()
@@ -17,12 +18,7 @@ const PostDetail = () => {
     e.currentTarget.style.display = 'none'
   }
 
-  useEffect(() => {
-    fetchPost()
-    fetchComments()
-  }, [id])
-
-  const fetchPost = async () => {
+  const fetchPost = useCallback(async () => {
     try {
       const response = await api.get(`/posts/${id}`)
       setPost(response.data)
@@ -31,16 +27,76 @@ const PostDetail = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const response = await api.get(`/comments/post/${id}`)
       setComments(response.data.comments)
     } catch (error) {
       console.error('Error fetching comments:', error)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    setLoading(true)
+    fetchPost()
+    fetchComments()
+  }, [fetchPost, fetchComments])
+
+  useEffect(() => {
+    const socket = getSocket()
+    socket.emit('join_post', id)
+
+    const handleNewComment = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+        fetchPost()
+      }
+    }
+
+    const handleCommentUpdated = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+      }
+    }
+
+    const handleCommentDeleted = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+        fetchPost()
+      }
+    }
+
+    const handlePostVoted = (payload) => {
+      if (payload?.postId === id) {
+        fetchPost()
+      }
+    }
+
+    const handleCommentVoted = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+      }
+    }
+
+    socket.on('comment:new', handleNewComment)
+    socket.on('comment:updated', handleCommentUpdated)
+    socket.on('comment:deleted', handleCommentDeleted)
+    socket.on('post:voted', handlePostVoted)
+    socket.on('comment:voted', handleCommentVoted)
+    socket.on('post:viewed', handlePostVoted)
+
+    return () => {
+      socket.emit('leave_post', id)
+      socket.off('comment:new', handleNewComment)
+      socket.off('comment:updated', handleCommentUpdated)
+      socket.off('comment:deleted', handleCommentDeleted)
+      socket.off('post:voted', handlePostVoted)
+      socket.off('comment:voted', handleCommentVoted)
+      socket.off('post:viewed', handlePostVoted)
+    }
+  }, [id, fetchPost, fetchComments])
 
   const handleSubmitComment = async (e) => {
     e.preventDefault()
