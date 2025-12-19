@@ -3,34 +3,102 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Reddit-inspired color palette */
+    --color-reddit-orange: #FF4500;
+    --color-reddit-orange-hover: #FF5722;
+    --color-bg-primary: #DAE0E6;
+    --color-bg-card: #FFFFFF;
+    --color-bg-hover: #F8F9FA;
+    --color-header: #1A1A1B;
+    --color-text-primary: #1A1A1B;
+    --color-text-secondary: #7c7c7c;
+    --color-border: #EDEFF1;
+    --color-upvote: #FF4500;
+    --color-downvote: #7193FF;
+  }
+
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--color-bg-primary);
+  }
+  
+  body {
+    background-color: var(--color-bg-primary);
   }
 }
 
 @layer components {
+  /* Buttons */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+    @apply px-4 py-2 rounded-full font-bold transition-all duration-200 text-sm;
   }
   
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply bg-[#FF4500] text-white hover:bg-[#FF5722] focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    @apply bg-white border-2 border-gray-300 text-gray-900 hover:bg-gray-50 focus:ring-2 focus:ring-gray-400;
   }
   
   .btn-danger {
     @apply bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
   }
   
+  /* Input fields */
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] focus:outline-none;
   }
   
+  /* Cards - Reddit style */
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded border border-gray-300 hover:border-gray-400 transition-all duration-150;
+  }
+  
+  /* Vote buttons */
+  .vote-btn {
+    @apply w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 transition-colors cursor-pointer;
+  }
+  
+  .vote-btn-active-up {
+    @apply text-[#FF4500] hover:bg-red-50;
+  }
+  
+  .vote-btn-active-down {
+    @apply text-[#7193FF] hover:bg-blue-50;
+  }
+  
+  /* Reddit-style post card */
+  .post-card {
+    @apply flex bg-white border border-gray-300 hover:border-gray-400 transition-all duration-150 cursor-pointer;
+  }
+  
+  .post-vote-section {
+    @apply w-10 bg-gray-50 flex flex-col items-center py-2 rounded-l;
+  }
+  
+  .post-content-section {
+    @apply flex-1 p-3;
+  }
+  
+  /* Category badge - Reddit style */
+  .category-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200;
+  }
+  
+  /* Action icons */
+  .action-icon {
+    @apply flex items-center space-x-1 text-gray-500 hover:text-gray-900 transition-colors text-xs cursor-pointer;
+  }
+  
+  /* Sort tabs - Reddit style */
+  .sort-tab {
+    @apply px-4 py-2 font-bold text-sm text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300 transition-all cursor-pointer;
+  }
+  
+  .sort-tab-active {
+    @apply text-[#FF4500] border-[#FF4500] hover:border-[#FF4500];
   }
 }
 

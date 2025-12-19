@@ -4,7 +4,7 @@ const commentSchema = new mongoose.Schema({
   content: {
     type: String,
     required: [true, 'Please add content'],
-    maxlength: [2000, 'Content cannot be more than 2000 characters']
+    maxlength: [5000, 'Content cannot be more than 5000 characters'] // Increased from 2000
   },
   author: {
     type: mongoose.Schema.ObjectId,
@@ -21,6 +21,23 @@ const commentSchema = new mongoose.Schema({
     ref: 'Comment',
     default: null
   },
+
+  // Thread tracking (NEW)
+  depth: {
+    type: Number,
+    default: 0,  // 0 = top-level comment
+    max: 5       // Limit nesting to 5 levels
+  },
+  path: {
+    type: String,
+    default: '001'  // e.g., "001.003.002" for ordering
+  },
+  replyCount: {
+    type: Number,
+    default: 0  // Cache number of direct replies
+  },
+
+  // Interactions
   upvotes: {
     type: Number,
     default: 0
@@ -29,6 +46,12 @@ const commentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  netVotes: {
+    type: Number,
+    default: 0  // NEW: upvotes - downvotes
+  },
+
+  // Status
   isEdited: {
     type: Boolean,
     default: false
@@ -36,17 +59,39 @@ const commentSchema = new mongoose.Schema({
   editedAt: {
     type: Date
   },
-  replies: [{
-    type: mongoose.Schema.ObjectId,
-    ref: 'Comment'
-  }]
+  isDeleted: {
+    type: Boolean,
+    default: false  // NEW: Soft delete
+  },
+  deletedAt: {
+    type: Date
+  },
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Index for efficient queries
-commentSchema.index({ post: 1, createdAt: 1 });
-commentSchema.index({ parentComment: 1 });
+// Middleware to update netVotes before save
+commentSchema.pre('save', function (next) {
+  this.netVotes = this.upvotes - this.downvotes;
+  next();
+});
+
+// Virtual field for replies
+commentSchema.virtual('replies', {
+  ref: 'Comment',
+  localField: '_id',
+  foreignField: 'parentComment',
+});
+
+// Compound indexes for efficient queries (NEW - PERFORMANCE OPTIMIZATION)
+commentSchema.index({ post: 1, depth: 1, path: 1 }); // Threaded comment ordering
+commentSchema.index({ post: 1, createdAt: 1 }); // Chronological per post
+commentSchema.index({ parentComment: 1, createdAt: 1 }); // Replies for a comment
+commentSchema.index({ author: 1, createdAt: -1 }); // User's comments
+commentSchema.index({ post: 1, isDeleted: 1 }); // Exclude deleted comments
 
 module.exports = mongoose.model('Comment', commentSchema);
+
 

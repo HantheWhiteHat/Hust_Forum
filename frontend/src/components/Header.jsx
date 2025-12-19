@@ -12,53 +12,64 @@ const Header = () => {
   }
 
   return (
-    <header className="bg-white sticky shadow-md top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-3">
+    <header className="bg-[#1A1A1B] sticky top-0 z-50 border-b border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
-          <Link to="/" className="text-3xl font-extrabold text-indigo-700 tracking-tight transition duration-300 hover:text-indigo-600">
-            BK Forum
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2 text-white hover:opacity-90 transition">
+            <img
+              src="/favico.png"
+              alt="BK Forum"
+              className="w-8 h-8 rounded"
+            />
+            <span className="font-bold text-xl">
+              BK<span className="text-[#FF4500]">Forum</span>
+            </span>
           </Link>
 
-          <div className="flex items-center space-x-6">
+          {/* Right side */}
+          <div className="flex items-center space-x-3">
             {user ? (
               <>
                 <Link
                   to="/create-post"
-                  className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 transition duration-300 shadow-md hover:shadow-lg"
+                  className="flex items-center px-4 py-1.5 bg-[#FF4500] text-white rounded-full font-bold text-sm hover:bg-[#FF5722] transition"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span>Create Post</span>
+                  <Plus className="w-4 h-4 mr-1" />
+                  <span>Create</span>
                 </Link>
-                
+
                 <Link
                   to={`/profile/${user._id}`}
-                  className="flex items-center space-x-2 text-gray-800 font-medium hover:text-indigo-600 transition duration-300"
+                  className="flex items-center space-x-2 px-3 py-1.5 text-white hover:bg-gray-800 rounded transition"
                 >
-                  <User className="w-5 h-5" />
-                  <span>{user.username}</span>
+                  <div className="w-6 h-6 bg-[#FF4500] rounded-full flex items-center justify-center text-xs font-bold">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium hidden sm:block">{user.username}</span>
                 </Link>
-                
+
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 text-red-500 font-medium hover:text-red-700 transition duration-300"
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                  title="Logout"
                 >
                   <LogOut className="w-5 h-5" />
-                  <span>Logout</span>
                 </button>
               </>
             ) : (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
                 <Link
                   to="/login"
-                  className="text-gray-700 font-medium hover:text-indigo-600 transition duration-300"
+                  className="px-4 py-1.5 text-white font-bold text-sm hover:bg-gray-800 rounded-full transition"
                 >
-                  Login
+                  Log In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 transition duration-300 shadow-md"
+                  className="px-4 py-1.5 bg-[#FF4500] text-white rounded-full font-bold text-sm hover:bg-[#FF5722] transition"
                 >
-                  Register
+                  Sign Up
                 </Link>
               </div>
             )}
