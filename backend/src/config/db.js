@@ -4,18 +4,23 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    // Default to localhost if MONGODB_URI not set
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bkforum';
 
-    console.log(`✅ MongoDB Connected: ${process.env.MONGODB_URI}`);
-    console.log(`MongoDB Connected successfully: ${conn.connection.host}`);
+    if (!process.env.MONGODB_URI) {
+      console.warn('⚠️  MONGODB_URI not set in .env, using default: mongodb://localhost:27017/bkforum');
+    }
+
+    const conn = await mongoose.connect(mongoUri);
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('Database connection error:', error.message);
+    console.error('❌ Database connection error:', error.message);
+    console.error('   Make sure MongoDB is running and MONGODB_URI is correct in .env file');
     process.exit(1);
   }
 };
 
 module.exports = connectDB;
+
 

@@ -2,8 +2,12 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Comment = require('../models/Comment');
 const Media = require('../models/Media');
+const Vote = require('../models/Vote');
 const { paginate } = require('../utils/paginate');
+const logger = require('../utils/logger');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -12,7 +16,7 @@ const getPosts = async (req, res) => {
   try {
     const { page = 1, limit = 10, category, search, sort = 'newest' } = req.query;
 
-    let query = {};
+    let query = { isDeleted: { $ne: true } }; // Exclude soft-deleted posts
 
     // Filter by category
     if (category) {
@@ -28,27 +32,31 @@ const getPosts = async (req, res) => {
     let sortOption = {};
     switch (sort) {
       case 'newest':
-        sortOption = { createdAt: -1 };
+        sortOption = { isPinned: -1, createdAt: -1 };
         break;
       case 'oldest':
         sortOption = { createdAt: 1 };
         break;
       case 'popular':
-        sortOption = { upvotes: -1 };
+        sortOption = { isPinned: -1, netVotes: -1, createdAt: -1 };
         break;
       case 'most_viewed':
-        sortOption = { views: -1 };
+        sortOption = { isPinned: -1, views: -1 };
+        break;
+      case 'hot':
+        sortOption = { isPinned: -1, lastActivityAt: -1 };
         break;
       default:
-        sortOption = { createdAt: -1 };
+        sortOption = { isPinned: -1, createdAt: -1 };
     }
 
     const posts = await Post.find(query)
       .populate('author', 'username avatar')
-      .populate('media') // NEW: Populate media with captions
+      .populate('media')
       .sort(sortOption)
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .lean(); // Use lean() for read-only queries
 
     const total = await Post.countDocuments(query);
 
@@ -57,6 +65,7 @@ const getPosts = async (req, res) => {
       pagination: paginate(page, limit, total)
     });
   } catch (error) {
+    logger.error('getPosts error', { error: error.message });
     res.status(500).json({ message: error.message });
   }
 };
@@ -66,28 +75,29 @@ const getPosts = async (req, res) => {
 // @access  Public
 const getPost = async (req, res) => {
   try {
-
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid post id' });
-    }
-
+    // Validation already done by middleware
     const post = await Post.findById(req.params.id)
       .populate('author', 'username avatar reputation')
-      .populate('media'); // NEW: Populate media array
+      .populate('media');
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const comments = await Comment.find({ post: req.params.id })
+    if (post.isDeleted) {
+      return res.status(404).json({ message: 'Post has been deleted' });
+    }
+
+    const comments = await Comment.find({
+      post: req.params.id,
+      isDeleted: { $ne: true }
+    })
       .populate('author', 'username avatar')
       .sort({ createdAt: 1 });
 
-    // Increment view count
+    // Increment view count (atomically)
     if (!req.user || (req.user && req.user.id !== post.author._id.toString())) {
-      post.views += 1;
-      await post.save();
+      await Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
     }
 
     res.json({
@@ -95,8 +105,7 @@ const getPost = async (req, res) => {
       comments
     });
   } catch (error) {
-    // res.status(500).json({ message: error.message });
-    console.error('getPost error:', error);
+    logger.error('getPost error', { error: error.message, postId: req.params.id });
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -106,23 +115,37 @@ const getPost = async (req, res) => {
 // @access  Private
 const createPost = async (req, res) => {
   try {
-    console.log("req.user =", req.user);
-    console.log("BODY RECEIVED:", req.body);
-    console.log("FILES RECEIVED:", req.files); // Now using req.files for multiple
+    logger.debug('Creating post', { userId: req.user.id });
 
     const { title, content, tags, category, captions } = req.body;
 
     // Parse captions if provided
     let captionsArray = [];
     if (captions) {
-      captionsArray = typeof captions === 'string' ? JSON.parse(captions) : captions;
+      try {
+        captionsArray = typeof captions === 'string' ? JSON.parse(captions) : captions;
+      } catch (e) {
+        logger.warn('Failed to parse captions', { captions });
+        captionsArray = [];
+      }
+    }
+
+    // Parse tags safely
+    let parsedTags = [];
+    if (tags) {
+      try {
+        parsedTags = Array.isArray(tags) ? tags : JSON.parse(tags);
+      } catch (e) {
+        logger.warn('Failed to parse tags', { tags });
+        parsedTags = [];
+      }
     }
 
     // Create post first
     const post = await Post.create({
       title,
       content: content || '',
-      tags: tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [],
+      tags: parsedTags,
       category: category || 'general',
       author: req.user.id,
       media: [],
@@ -168,8 +191,10 @@ const createPost = async (req, res) => {
       post.content = processedContent;
 
       // Keep backward compatibility - set first media as image/mediaType
-      post.image = mediaDocuments[0].filepath;
-      post.mediaType = mediaDocuments[0].mediaType;
+      if (mediaDocuments.length > 0) {
+        post.image = mediaDocuments[0].filepath;
+        post.mediaType = mediaDocuments[0].mediaType;
+      }
     }
 
     await post.save();
@@ -179,9 +204,10 @@ const createPost = async (req, res) => {
       .populate('author', 'username avatar')
       .populate('media');
 
+    logger.info('Post created', { postId: post._id, userId: req.user.id });
     res.status(201).json(populatedPost);
   } catch (error) {
-    console.error('createPost error:', error);
+    logger.error('createPost error', { error: error.message, userId: req.user?.id });
     res.status(500).json({ message: error.message });
   }
 };
@@ -202,20 +228,20 @@ const updatePost = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to update this post' });
     }
 
-    // const updatedPost = await Post.findByIdAndUpdate(
-    //   req.params.id,
-    //   req.body,
-    //   { new: true, runValidators: true }
-    // ).populate('author', 'username avatar');
-
     post.title = req.body.title || post.title;
     post.content = req.body.content || post.content;
     post.category = req.body.category || post.category;
-    post.tags = req.body.tags ? JSON.parse(req.body.tags) : post.tags;
+
+    if (req.body.tags) {
+      try {
+        post.tags = typeof req.body.tags === 'string' ? JSON.parse(req.body.tags) : req.body.tags;
+      } catch (e) {
+        logger.warn('Failed to parse tags in update', { tags: req.body.tags });
+      }
+    }
 
     if (req.file) {
       post.image = `/uploads/${req.file.filename}`;
-      // Cập nhật mediaType dựa trên file mới
       if (req.file.mimetype.startsWith('video/')) {
         post.mediaType = 'video';
       } else if (req.file.mimetype.startsWith('image/')) {
@@ -227,12 +253,27 @@ const updatePost = async (req, res) => {
     const populatedPost = await Post.findById(updatedPost._id)
       .populate('author', 'username avatar');
 
-    // res.json(updatedPost);
+    logger.info('Post updated', { postId: post._id, userId: req.user.id });
     res.json(populatedPost);
   } catch (error) {
-    console.error('updatePost error:', error);
+    logger.error('updatePost error', { error: error.message, postId: req.params.id });
     res.status(500).json({ message: error.message });
   }
+};
+
+// Helper function to safely delete a file
+const safeDeleteFile = (filepath) => {
+  try {
+    const fullPath = path.join(process.cwd(), filepath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      logger.debug('Deleted file', { filepath: fullPath });
+      return true;
+    }
+  } catch (error) {
+    logger.warn('Failed to delete file', { filepath, error: error.message });
+  }
+  return false;
 };
 
 // @desc    Delete post
@@ -240,7 +281,7 @@ const updatePost = async (req, res) => {
 // @access  Private
 const deletePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).populate('media');
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
@@ -251,13 +292,40 @@ const deletePost = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to delete this post' });
     }
 
-    // Delete associated comments
-    await Comment.deleteMany({ post: req.params.id });
+    // Clean up media files from disk and database
+    if (post.media && post.media.length > 0) {
+      for (const media of post.media) {
+        // Delete file from disk
+        safeDeleteFile(media.filepath);
+        // Delete media document
+        await Media.findByIdAndDelete(media._id);
+      }
+      logger.info('Cleaned up media files', { postId: post._id, count: post.media.length });
+    }
 
-    await Post.findByIdAndDelete(req.params.id);
+    // Delete legacy single image if exists
+    if (post.image) {
+      safeDeleteFile(post.image);
+    }
 
+    // Delete associated comments (soft delete)
+    await Comment.updateMany(
+      { post: req.params.id },
+      { $set: { isDeleted: true, deletedAt: new Date() } }
+    );
+
+    // Delete associated votes
+    await Vote.deleteMany({ post: req.params.id });
+
+    // Soft delete the post (or hard delete based on preference)
+    await Post.findByIdAndUpdate(req.params.id, {
+      $set: { isDeleted: true, deletedAt: new Date() }
+    });
+
+    logger.info('Post deleted', { postId: post._id, userId: req.user.id });
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
+    logger.error('deletePost error', { error: error.message, postId: req.params.id });
     res.status(500).json({ message: error.message });
   }
 };
@@ -269,4 +337,3 @@ module.exports = {
   updatePost,
   deletePost,
 };
-

@@ -2,20 +2,21 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const mongoose = require('mongoose');
 
-async function getReplies(commentId) {
-  const replies = await Comment.find({ parentComment: commentId })
-    .populate('author', 'username avatar')
-    .sort({ createdAt: 1 });
-
-  // fetch replies of replies
-  for (let reply of replies) {
-    reply.replies = await getReplies(reply._id); // recursive
+// Optimized: Use aggregation instead of recursive N+1 queries
+const buildCommentTree = (comments, parentId = null) => {
+  const result = [];
+  for (const comment of comments) {
+    const parentCommentId = comment.parentComment ? comment.parentComment.toString() : null;
+    if (parentCommentId === (parentId ? parentId.toString() : null)) {
+      const children = buildCommentTree(comments, comment._id);
+      result.push({
+        ...comment,
+        replies: children
+      });
+    }
   }
-
-  return replies;
-}
-
-
+  return result;
+};
 
 // @desc    Get comments for a post
 // @route   GET /api/comments/post/:postId
@@ -25,34 +26,29 @@ const getComments = async (req, res) => {
     const { postId } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
+    // Validation already done by middleware, but keep as safety check
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: "Invalid post ID format" });
     }
 
-    const parentComments = await Comment.find({ post: new mongoose.Types.ObjectId(postId), parentComment: null })
+    // OPTIMIZED: Fetch all comments in ONE query, then build tree in memory
+    const allComments = await Comment.find({
+      post: new mongoose.Types.ObjectId(postId),
+      isDeleted: { $ne: true }
+    })
       .populate('author', 'username avatar')
-      // .populate({
-      //   path: 'replies',
-      //   populate: {
-      //     path: 'author',
-      //     select: 'username avatar'
-      //   }
-      // })
       .sort({ createdAt: 1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-    
-    const comments = [];
-    for (let c of parentComments) {
-      const obj = c.toObject();
-      obj.replies = await getReplies(c._id);
-      comments.push(obj);
-    }
+      .lean(); // Use lean() for better performance
 
-    const total = await Comment.countDocuments({ post: new mongoose.Types.ObjectId(postId), parentComment: null });
+    // Build comment tree in memory (much faster than N+1 queries)
+    const commentTree = buildCommentTree(allComments, null);
+
+    // Apply pagination to top-level comments only
+    const paginatedComments = commentTree.slice((page - 1) * limit, page * limit);
+    const total = commentTree.length;
 
     res.json({
-      comments,
+      comments: paginatedComments,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),
@@ -60,8 +56,7 @@ const getComments = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching comments:", error.stack);
-
+    console.error("Error fetching comments:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -79,30 +74,49 @@ const createComment = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
+    // Check if post is locked
+    if (post.isLocked) {
+      return res.status(403).json({ message: 'This post is locked for comments' });
+    }
+
     // If replying to a comment, verify parent comment exists
+    let depth = 0;
     if (parentCommentId) {
       const parentComment = await Comment.findById(parentCommentId);
       if (!parentComment) {
         return res.status(404).json({ message: 'Parent comment not found' });
       }
+      // Set depth based on parent
+      depth = Math.min((parentComment.depth || 0) + 1, 5); // Max depth 5
     }
 
     const comment = await Comment.create({
       content,
       author: req.user.id,
       post: postId,
-      parentComment: parentCommentId || null
+      parentComment: parentCommentId || null,
+      depth
     });
 
-    // Update comment count on post
-    post.commentCount += 1;
-    await post.save();
+    // OPTIMIZED: Use atomic $inc operation instead of read-modify-write
+    await Post.findByIdAndUpdate(postId, {
+      $inc: { commentCount: 1 },
+      $set: { lastActivityAt: new Date() }
+    });
+
+    // Update parent comment's reply count if applicable
+    if (parentCommentId) {
+      await Comment.findByIdAndUpdate(parentCommentId, {
+        $inc: { replyCount: 1 }
+      });
+    }
 
     const populatedComment = await Comment.findById(comment._id)
       .populate('author', 'username avatar');
 
     res.status(201).json(populatedComment);
   } catch (error) {
+    console.error('createComment error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -125,7 +139,7 @@ const updateComment = async (req, res) => {
 
     const updatedComment = await Comment.findByIdAndUpdate(
       req.params.id,
-      { 
+      {
         content: req.body.content,
         isEdited: true,
         editedAt: new Date()
@@ -135,6 +149,7 @@ const updateComment = async (req, res) => {
 
     res.json(updatedComment);
   } catch (error) {
+    console.error('updateComment error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -155,20 +170,34 @@ const deleteComment = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to delete this comment' });
     }
 
-    // Delete all replies to this comment
-    await Comment.deleteMany({ parentComment: req.params.id });
+    // Count replies to adjust comment count properly
+    const replyCount = await Comment.countDocuments({ parentComment: req.params.id });
 
-    // Update comment count on post
-    const post = await Post.findById(comment.post);
-    if (post) {
-      post.commentCount -= 1;
-      await post.save();
+    // Soft delete: mark as deleted instead of hard delete
+    await Comment.updateMany(
+      { parentComment: req.params.id },
+      { $set: { isDeleted: true, deletedAt: new Date() } }
+    );
+
+    await Comment.findByIdAndUpdate(req.params.id, {
+      $set: { isDeleted: true, deletedAt: new Date() }
+    });
+
+    // OPTIMIZED: Atomic decrement of comment count (including replies)
+    await Post.findByIdAndUpdate(comment.post, {
+      $inc: { commentCount: -(1 + replyCount) }
+    });
+
+    // Update parent's reply count if applicable
+    if (comment.parentComment) {
+      await Comment.findByIdAndUpdate(comment.parentComment, {
+        $inc: { replyCount: -1 }
+      });
     }
-
-    await Comment.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
+    console.error('deleteComment error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -179,4 +208,3 @@ module.exports = {
   updateComment,
   deleteComment,
 };
-
