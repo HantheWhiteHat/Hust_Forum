@@ -23,6 +23,44 @@ const PostDetail = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
 
+  // Helper: Update a comment in nested tree structure
+  const updateCommentInTree = (comments, updatedComment) => {
+    return comments.map(comment => {
+      if (comment._id === updatedComment._id) {
+        return { ...comment, ...updatedComment }
+      }
+      if (comment.replies && comment.replies.length > 0) {
+        return { ...comment, replies: updateCommentInTree(comment.replies, updatedComment) }
+      }
+      return comment
+    })
+  }
+
+  // Helper: Remove a comment from nested tree structure
+  const removeCommentFromTree = (comments, commentId) => {
+    return comments
+      .filter(comment => comment._id !== commentId)
+      .map(comment => {
+        if (comment.replies && comment.replies.length > 0) {
+          return { ...comment, replies: removeCommentFromTree(comment.replies, commentId) }
+        }
+        return comment
+      })
+  }
+
+  // Helper: Update vote counts for a comment in tree
+  const updateCommentVoteInTree = (comments, commentId, upvotes, downvotes) => {
+    return comments.map(comment => {
+      if (comment._id === commentId) {
+        return { ...comment, upvotes, downvotes }
+      }
+      if (comment.replies && comment.replies.length > 0) {
+        return { ...comment, replies: updateCommentVoteInTree(comment.replies, commentId, upvotes, downvotes) }
+      }
+      return comment
+    })
+  }
+
   const hasInlineUploadMedia = useMemo(() => {
     if (!post?.content) return false
 
@@ -70,39 +108,67 @@ const PostDetail = () => {
     fetchComments()
   }, [fetchPost, fetchComments])
 
+  // OPTIMIZED: Socket handlers with incremental updates where possible
   useEffect(() => {
     const socket = getSocket()
     socket.emit('join_post', id)
 
+    // New comment: need to refresh comments list
     const handleNewComment = (payload) => {
       if (payload?.postId === id) {
-        fetchComments()
-        fetchPost()
+        // Add new comment to list if we have the full comment data
+        if (payload.comment) {
+          setComments(prev => {
+            // Avoid duplicates
+            if (prev.some(c => c._id === payload.comment._id)) return prev
+            return [...prev, payload.comment]
+          })
+          // Update comment count incrementally
+          setPost(prev => prev ? { ...prev, commentCount: (prev.commentCount || 0) + 1 } : prev)
+        } else {
+          fetchComments()
+          fetchPost()
+        }
       }
     }
 
+    // Updated comment: update in place
     const handleCommentUpdated = (payload) => {
-      if (payload?.postId === id) {
-        fetchComments()
+      if (payload?.postId === id && payload.comment) {
+        setComments(prev => updateCommentInTree(prev, payload.comment))
       }
     }
 
+    // Deleted comment: remove from list 
     const handleCommentDeleted = (payload) => {
       if (payload?.postId === id) {
-        fetchComments()
-        fetchPost()
+        setComments(prev => removeCommentFromTree(prev, payload.commentId))
+        setPost(prev => prev ? { ...prev, commentCount: Math.max(0, (prev.commentCount || 1) - 1) } : prev)
       }
     }
 
+    // OPTIMIZED: Post voted - increment update instead of full fetch
     const handlePostVoted = (payload) => {
       if (payload?.postId === id) {
-        fetchPost()
+        setPost(prev => prev ? {
+          ...prev,
+          upvotes: payload.upvotes ?? prev.upvotes,
+          downvotes: payload.downvotes ?? prev.downvotes
+        } : prev)
       }
     }
 
+    // OPTIMIZED: Comment voted - increment update
     const handleCommentVoted = (payload) => {
+      if (payload?.postId === id && payload.commentId) {
+        setComments(prev => updateCommentVoteInTree(prev, payload.commentId, payload.upvotes, payload.downvotes))
+      }
+    }
+
+    // Post viewed - increment update
+    const handlePostViewed = (payload) => {
       if (payload?.postId === id) {
-        fetchComments()
+        setPost(prev => prev ? { ...prev, views: payload.views ?? prev.views } : prev)
       }
     }
 
@@ -111,7 +177,7 @@ const PostDetail = () => {
     socket.on('comment:deleted', handleCommentDeleted)
     socket.on('post:voted', handlePostVoted)
     socket.on('comment:voted', handleCommentVoted)
-    socket.on('post:viewed', handlePostVoted)
+    socket.on('post:viewed', handlePostViewed)
 
     return () => {
       socket.emit('leave_post', id)
@@ -120,7 +186,7 @@ const PostDetail = () => {
       socket.off('comment:deleted', handleCommentDeleted)
       socket.off('post:voted', handlePostVoted)
       socket.off('comment:voted', handleCommentVoted)
-      socket.off('post:viewed', handlePostVoted)
+      socket.off('post:viewed', handlePostViewed)
     }
   }, [id, fetchPost, fetchComments])
 

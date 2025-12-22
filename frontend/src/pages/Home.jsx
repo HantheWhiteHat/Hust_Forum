@@ -46,27 +46,67 @@ const Home = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // OPTIMIZED: Incremental updates instead of full refresh
   useEffect(() => {
     const socket = getSocket()
 
-    const refresh = () => {
-      fetchPosts()
+    // Handle new post - add to top of list
+    const handleNewPost = (newPost) => {
+      if (filters.page === 1) {
+        setPosts(prev => {
+          // Avoid duplicates
+          if (prev.some(p => p._id === newPost._id)) return prev
+          // Add new post to top, remove last if at limit
+          const updated = [newPost, ...prev]
+          return updated.slice(0, 10) // Keep max 10 posts per page
+        })
+      }
     }
 
-    socket.on('post:new', refresh)
-    socket.on('post:updated', refresh)
-    socket.on('post:deleted', refresh)
-    socket.on('post:voted', refresh)
-    socket.on('post:viewed', refresh)
+    // Handle post updated - update in place
+    const handlePostUpdated = (updatedPost) => {
+      setPosts(prev => prev.map(p =>
+        p._id === updatedPost._id ? { ...p, ...updatedPost } : p
+      ))
+    }
+
+    // Handle post deleted - remove from list
+    const handlePostDeleted = (data) => {
+      setPosts(prev => prev.filter(p => p._id !== data.postId))
+    }
+
+    // Handle vote changes - update vote counts incrementally
+    const handlePostVoted = (data) => {
+      setPosts(prev => prev.map(p =>
+        p._id === data.postId
+          ? { ...p, upvotes: data.upvotes, downvotes: data.downvotes }
+          : p
+      ))
+    }
+
+    // Handle view changes - update view count incrementally
+    const handlePostViewed = (data) => {
+      setPosts(prev => prev.map(p =>
+        p._id === data.postId
+          ? { ...p, views: data.views }
+          : p
+      ))
+    }
+
+    socket.on('post:new', handleNewPost)
+    socket.on('post:updated', handlePostUpdated)
+    socket.on('post:deleted', handlePostDeleted)
+    socket.on('post:voted', handlePostVoted)
+    socket.on('post:viewed', handlePostViewed)
 
     return () => {
-      socket.off('post:new', refresh)
-      socket.off('post:updated', refresh)
-      socket.off('post:deleted', refresh)
-      socket.off('post:voted', refresh)
-      socket.off('post:viewed', refresh)
+      socket.off('post:new', handleNewPost)
+      socket.off('post:updated', handlePostUpdated)
+      socket.off('post:deleted', handlePostDeleted)
+      socket.off('post:voted', handlePostVoted)
+      socket.off('post:viewed', handlePostViewed)
     }
-  }, [fetchPosts])
+  }, [filters.page])
 
   if (loading) {
     return (
