@@ -3,6 +3,20 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const { getIO } = require('../socket');
+
+// Helper function to emit socket events safely
+const emitSocketEvent = (eventName, payload, roomName = null) => {
+  try {
+    const io = getIO();
+    if (roomName) {
+      io.to(roomName).emit(eventName, payload);
+    }
+    io.emit(eventName, payload);
+  } catch (emitError) {
+    console.error(`Socket emit error (${eventName}):`, emitError.message);
+  }
+};
 
 // @desc    Vote on post or comment
 // @route   POST /api/votes
@@ -50,6 +64,16 @@ const createVote = async (req, res) => {
         await session.abortTransaction();
         return res.status(404).json({ message: 'Post not found' });
       }
+
+      // Socket emit after successful transaction
+      await session.commitTransaction();
+      emitSocketEvent('post:voted', {
+        postId: postId.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${postId}`);
+
+      return res.status(201).json(vote[0]);
     } else {
       const updateField = type === 'upvote' ? 'upvotes' : 'downvotes';
       const result = await Comment.findByIdAndUpdate(
@@ -61,10 +85,18 @@ const createVote = async (req, res) => {
         await session.abortTransaction();
         return res.status(404).json({ message: 'Comment not found' });
       }
-    }
 
-    await session.commitTransaction();
-    res.status(201).json(vote[0]);
+      // Socket emit after successful transaction
+      await session.commitTransaction();
+      emitSocketEvent('comment:voted', {
+        postId: result.post.toString(),
+        commentId: commentId.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${result.post.toString()}`);
+
+      return res.status(201).json(vote[0]);
+    }
   } catch (error) {
     await session.abortTransaction();
     console.error('createVote error:', error);
@@ -113,12 +145,40 @@ const updateVote = async (req, res) => {
       : { upvotes: 1, downvotes: -1 };
 
     if (vote.post) {
-      await Post.findByIdAndUpdate(vote.post, { $inc: incUpdate }, { session });
+      const result = await Post.findByIdAndUpdate(
+        vote.post,
+        { $inc: incUpdate },
+        { session, new: true }
+      );
+
+      await session.commitTransaction();
+
+      // Socket emit after successful transaction
+      emitSocketEvent('post:voted', {
+        postId: vote.post.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${vote.post.toString()}`);
     } else if (vote.comment) {
-      await Comment.findByIdAndUpdate(vote.comment, { $inc: incUpdate }, { session });
+      const result = await Comment.findByIdAndUpdate(
+        vote.comment,
+        { $inc: incUpdate },
+        { session, new: true }
+      );
+
+      await session.commitTransaction();
+
+      // Socket emit after successful transaction
+      emitSocketEvent('comment:voted', {
+        postId: result.post.toString(),
+        commentId: vote.comment.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${result.post.toString()}`);
+    } else {
+      await session.commitTransaction();
     }
 
-    await session.commitTransaction();
     res.json(vote);
   } catch (error) {
     await session.abortTransaction();
@@ -154,22 +214,43 @@ const deleteVote = async (req, res) => {
     const updateField = vote.type === 'upvote' ? 'upvotes' : 'downvotes';
 
     if (vote.post) {
-      await Post.findByIdAndUpdate(
+      const result = await Post.findByIdAndUpdate(
         vote.post,
         { $inc: { [updateField]: -1 } },
-        { session }
+        { session, new: true }
       );
+
+      await Vote.findByIdAndDelete(req.params.id).session(session);
+      await session.commitTransaction();
+
+      // Socket emit after successful transaction
+      emitSocketEvent('post:voted', {
+        postId: vote.post.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${vote.post.toString()}`);
     } else if (vote.comment) {
-      await Comment.findByIdAndUpdate(
+      const result = await Comment.findByIdAndUpdate(
         vote.comment,
         { $inc: { [updateField]: -1 } },
-        { session }
+        { session, new: true }
       );
+
+      await Vote.findByIdAndDelete(req.params.id).session(session);
+      await session.commitTransaction();
+
+      // Socket emit after successful transaction
+      emitSocketEvent('comment:voted', {
+        postId: result.post.toString(),
+        commentId: vote.comment.toString(),
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      }, `post:${result.post.toString()}`);
+    } else {
+      await Vote.findByIdAndDelete(req.params.id).session(session);
+      await session.commitTransaction();
     }
 
-    await Vote.findByIdAndDelete(req.params.id).session(session);
-
-    await session.commitTransaction();
     res.json({ message: 'Vote deleted successfully' });
   } catch (error) {
     await session.abortTransaction();

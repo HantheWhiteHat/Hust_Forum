@@ -95,7 +95,12 @@ const postSchema = new mongoose.Schema({
     type: String,
     enum: ['image', 'video', null],
     default: null
-  }
+  },
+  viewedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }]
 }, {
   timestamps: true
 });
@@ -125,5 +130,3 @@ postSchema.index({ views: -1 });
 postSchema.index({ netVotes: -1 });
 
 module.exports = mongoose.model('Post', postSchema);
-
-

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowUp, ArrowDown, MessageCircle, Eye, ArrowLeft, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import api from '../api/api'
+import { getSocket } from '../api/socket'
 import CommentTree from '../components/CommentTree'
 import MediaGallery from '../components/MediaGallery'
 import { useAuth } from '../store/authContext'
@@ -22,12 +23,28 @@ const PostDetail = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
 
-  useEffect(() => {
-    fetchPost()
-    fetchComments()
-  }, [id])
+  const hasInlineUploadMedia = useMemo(() => {
+    if (!post?.content) return false
 
-  const fetchPost = async () => {
+    try {
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = post.content
+
+      // Media inserted by our editor uses `.media-block`
+      if (tempDiv.querySelector('.media-block')) return true
+
+      // Fallback: detect upload/blob media that may not be wrapped
+      const mediaElements = tempDiv.querySelectorAll('img, video')
+      return Array.from(mediaElements).some((element) => {
+        const src = element.getAttribute('src') || ''
+        return src.startsWith('blob:') || src.includes('/uploads/')
+      })
+    } catch {
+      return false
+    }
+  }, [post?.content])
+
+  const fetchPost = useCallback(async () => {
     try {
       const response = await api.get(`/posts/${id}`)
       setPost(response.data)
@@ -36,16 +53,76 @@ const PostDetail = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const response = await api.get(`/comments/post/${id}`)
       setComments(response.data.comments)
     } catch (error) {
       console.error('Error fetching comments:', error)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    setLoading(true)
+    fetchPost()
+    fetchComments()
+  }, [fetchPost, fetchComments])
+
+  useEffect(() => {
+    const socket = getSocket()
+    socket.emit('join_post', id)
+
+    const handleNewComment = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+        fetchPost()
+      }
+    }
+
+    const handleCommentUpdated = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+      }
+    }
+
+    const handleCommentDeleted = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+        fetchPost()
+      }
+    }
+
+    const handlePostVoted = (payload) => {
+      if (payload?.postId === id) {
+        fetchPost()
+      }
+    }
+
+    const handleCommentVoted = (payload) => {
+      if (payload?.postId === id) {
+        fetchComments()
+      }
+    }
+
+    socket.on('comment:new', handleNewComment)
+    socket.on('comment:updated', handleCommentUpdated)
+    socket.on('comment:deleted', handleCommentDeleted)
+    socket.on('post:voted', handlePostVoted)
+    socket.on('comment:voted', handleCommentVoted)
+    socket.on('post:viewed', handlePostVoted)
+
+    return () => {
+      socket.emit('leave_post', id)
+      socket.off('comment:new', handleNewComment)
+      socket.off('comment:updated', handleCommentUpdated)
+      socket.off('comment:deleted', handleCommentDeleted)
+      socket.off('post:voted', handlePostVoted)
+      socket.off('comment:voted', handleCommentVoted)
+      socket.off('post:viewed', handlePostVoted)
+    }
+  }, [id, fetchPost, fetchComments])
 
   const handleSubmitComment = async (e) => {
     e.preventDefault()
@@ -206,10 +283,10 @@ const PostDetail = () => {
             {/* Title */}
             <h1 className="text-2xl font-bold mb-4 text-gray-900">{post.title}</h1>
 
-            {/* Media Gallery - NEW: Handle both new media array and old single image */}
-            {post.media && post.media.length > 0 ? (
+            {/* Media Gallery - show only when media isn't already embedded in content */}
+            {!hasInlineUploadMedia && post.media && post.media.length > 0 ? (
               <MediaGallery media={post.media} />
-            ) : post.image ? (
+            ) : !hasInlineUploadMedia && post.image ? (
               <div className="my-4 bg-black rounded-lg overflow-hidden">
                 {post.mediaType === 'video' ? (
                   <video
@@ -295,17 +372,24 @@ const PostDetail = () => {
           {comments.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No comments yet. Be the first to comment!</p>
           ) : (
-            <CommentTree
-              comments={comments}
-              postId={id}
-              onCommentUpdate={fetchComments}
-            />
+            <div className="space-y-4">
+              {comments.map((comment) => (
+                <CommentTree
+                  key={comment._id}
+                  comment={comment}
+                  onReplySuccess={() => {
+                    fetchComments()
+                    fetchPost()
+                  }}
+                />
+              ))}
+            </div>
           )}
         </div>
-      </div >
+      </div>
 
       {/* CSS for post content */}
-      < style > {`
+      <style>{`
         .post-content {
           font-size: 0.875rem;
           line-height: 1.5;
@@ -399,8 +483,8 @@ const PostDetail = () => {
           border-radius: 0.25rem;
           transition: all 0.15s;
         }
-      `}</style >
-    </div >
+      `}</style>
+    </div>
   )
 }
 

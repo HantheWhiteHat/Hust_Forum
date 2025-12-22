@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const { getIO } = require('../socket');
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -53,6 +54,7 @@ const getPosts = async (req, res) => {
     const posts = await Post.find(query)
       .populate('author', 'username avatar')
       .populate('media')
+      .select('-viewedBy')
       .sort(sortOption)
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -95,13 +97,39 @@ const getPost = async (req, res) => {
       .populate('author', 'username avatar')
       .sort({ createdAt: 1 });
 
-    // Increment view count (atomically)
-    if (!req.user || (req.user && req.user.id !== post.author._id.toString())) {
-      await Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+    // OPTIMIZED: Better view counting with user tracking
+    const currentUserId = req.user?._id?.toString() || req.user?.id?.toString();
+    const isAuthor = currentUserId && currentUserId === post.author._id.toString();
+
+    // Increment view count only once per authenticated user and never for author
+    if (currentUserId && !isAuthor) {
+      const viewedBy = Array.isArray(post.viewedBy) ? post.viewedBy : [];
+      const alreadyViewed = viewedBy.some(
+        (viewerId) => viewerId.toString() === currentUserId
+      );
+      if (!alreadyViewed) {
+        post.views += 1;
+        post.viewedBy = [...viewedBy, currentUserId];
+        await post.save();
+
+        // Socket emit for real-time view updates
+        try {
+          const io = getIO();
+          io.emit('post:viewed', {
+            postId: post._id.toString(),
+            views: post.views,
+          });
+        } catch (emitError) {
+          logger.warn('Socket emit error (post:viewed)', { error: emitError.message });
+        }
+      }
     }
 
+    const postObj = post.toObject();
+    delete postObj.viewedBy;
+
     res.json({
-      ...post.toObject(),
+      ...postObj,
       comments
     });
   } catch (error) {
@@ -205,6 +233,15 @@ const createPost = async (req, res) => {
       .populate('media');
 
     logger.info('Post created', { postId: post._id, userId: req.user.id });
+
+    // Socket emit for real-time updates
+    try {
+      const io = getIO();
+      io.emit('post:new', populatedPost);
+    } catch (emitError) {
+      logger.warn('Socket emit error (post:new)', { error: emitError.message });
+    }
+
     res.status(201).json(populatedPost);
   } catch (error) {
     logger.error('createPost error', { error: error.message, userId: req.user?.id });
@@ -254,6 +291,15 @@ const updatePost = async (req, res) => {
       .populate('author', 'username avatar');
 
     logger.info('Post updated', { postId: post._id, userId: req.user.id });
+
+    // Socket emit for real-time updates
+    try {
+      const io = getIO();
+      io.emit('post:updated', populatedPost);
+    } catch (emitError) {
+      logger.warn('Socket emit error (post:updated)', { error: emitError.message });
+    }
+
     res.json(populatedPost);
   } catch (error) {
     logger.error('updatePost error', { error: error.message, postId: req.params.id });
@@ -323,6 +369,15 @@ const deletePost = async (req, res) => {
     });
 
     logger.info('Post deleted', { postId: post._id, userId: req.user.id });
+
+    // Socket emit for real-time updates
+    try {
+      const io = getIO();
+      io.emit('post:deleted', { postId: req.params.id });
+    } catch (emitError) {
+      logger.warn('Socket emit error (post:deleted)', { error: emitError.message });
+    }
+
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     logger.error('deletePost error', { error: error.message, postId: req.params.id });
