@@ -327,9 +327,22 @@ const PostDetail = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2 text-xs text-gray-500">
-                <span className="category-badge">r/{post.category}</span>
+                <Link to={`/profile/${post.author._id}`} className="flex items-center space-x-1 hover:underline">
+                  {post.author.avatar ? (
+                    <img
+                      src={`${BASE_URL}${post.author.avatar}`}
+                      alt={post.author.username}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                      {post.author.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span>u/{post.author.username}</span>
+                </Link>
                 <span>•</span>
-                <span>Posted by u/{post.author.username}</span>
+                <span className="category-badge">r/{post.category}</span>
                 <span>•</span>
                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
               </div>

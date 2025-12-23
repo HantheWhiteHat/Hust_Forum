@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Heart, Reply, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api/api'
 
@@ -8,6 +9,15 @@ const CommentTree = ({ comment, onReplySuccess }) => {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [submittingReply, setSubmittingReply] = useState(false)
+
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+
+  const getAvatarUrl = (avatarPath) => {
+    if (!avatarPath) return null
+    if (avatarPath.startsWith('http')) return avatarPath
+    return `${BASE_URL}${avatarPath}`
+  }
 
   useEffect(() => {
     setReplies(comment.replies || [])
@@ -24,7 +34,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
         postId: comment.post,
         parentCommentId: comment._id
       })
-      
+
       setReplies(prev => [...prev, response.data])
       setReplyText('')
       setShowReplyForm(false)
@@ -51,13 +61,25 @@ const CommentTree = ({ comment, onReplySuccess }) => {
     }
   }
 
+  const avatarUrl = getAvatarUrl(comment.author?.avatar)
+
   return (
     <div className="border-l-2 border-gray-200 pl-4">
       <div className="flex items-start space-x-3">
-        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-bold">
-          {comment.author?.username?.charAt(0).toUpperCase() || '?'}
-        </div>
-        
+        <Link to={`/profile/${comment.author?._id}`}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={comment.author?.username}
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-bold">
+              {comment.author?.username?.charAt(0).toUpperCase() || '?'}
+            </div>
+          )}
+        </Link>
+
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
             <span className="font-medium text-gray-900">{comment.author?.username || 'unknown'}</span>
@@ -68,9 +90,9 @@ const CommentTree = ({ comment, onReplySuccess }) => {
               <span className="text-xs text-gray-400">(edited)</span>
             )}
           </div>
-          
+
           <p className="text-gray-700 mb-3 whitespace-pre-wrap">{comment.content}</p>
-          
+
           <div className="flex items-center space-x-4">
             <button
               onClick={() => handleVote('upvote')}
@@ -79,7 +101,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
               <Heart className="w-4 h-4" />
               <span>{comment.upvotes}</span>
             </button>
-            
+
             <button
               onClick={() => setShowReplyForm(!showReplyForm)}
               className="flex items-center space-x-1 text-gray-600 hover:text-blue-600"
@@ -132,13 +154,13 @@ const CommentTree = ({ comment, onReplySuccess }) => {
                 )}
                 <span>{replies.length} {replies.length === 1 ? 'reply' : 'replies'}</span>
               </button>
-              
+
               {showReplies && (
                 <div className="space-y-4">
                   {replies.map((reply) => (
-                    <CommentTree 
-                      key={reply._id} 
-                      comment={reply} 
+                    <CommentTree
+                      key={reply._id}
+                      comment={reply}
                       onReplySuccess={onReplySuccess}
                     />
                   ))}

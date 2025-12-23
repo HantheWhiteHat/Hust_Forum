@@ -25,6 +25,11 @@ const authReducer = (state, action) => {
         ...state,
         loading: action.payload
       }
+    case 'UPDATE_USER':
+      return {
+        ...state,
+        user: { ...state.user, ...action.payload }
+      }
     default:
       return state
   }
@@ -68,9 +73,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify({
       _id: authData._id,
       username: authData.username,
-      email: authData.email
+      email: authData.email,
+      avatar: authData.avatar
     }))
-    
+
     dispatch({
       type: 'LOGIN',
       payload: { user: authData, token: authData.token }
@@ -83,10 +89,23 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGOUT' })
   }
 
+  const updateUserProfile = (updatedData) => {
+    // Update localStorage
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      const user = JSON.parse(storedUser)
+      const newUser = { ...user, ...updatedData }
+      localStorage.setItem('user', JSON.stringify(newUser))
+    }
+    // Update context state
+    dispatch({ type: 'UPDATE_USER', payload: updatedData })
+  }
+
   const value = {
     ...state,
     login,
-    logout
+    logout,
+    updateUserProfile
   }
 
   return (

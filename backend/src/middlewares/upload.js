@@ -11,7 +11,21 @@ if (!fs.existsSync(uploadsDir)) {
 // Cho phép upload ảnh và video
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/");
+    // Determine subdirectory based on route
+    let uploadPath = "uploads/";
+
+    // Avatar uploads go to uploads/avatars/
+    if (req.baseUrl && req.baseUrl.includes('/users')) {
+      uploadPath = "uploads/avatars/";
+    }
+
+    // Ensure directory exists
+    const fullPath = path.join(process.cwd(), uploadPath);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
     cb(

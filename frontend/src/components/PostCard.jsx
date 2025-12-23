@@ -53,11 +53,24 @@ const PostCard = ({ post }) => {
         <Link to={`/post/${post._id}`} className="block">
           {/* Header */}
           <div className="flex items-center space-x-2 text-xs text-gray-500 mb-1">
+            <Link to={`/profile/${post.author._id}`} className="flex items-center space-x-1 hover:underline">
+              {post.author.avatar ? (
+                <img
+                  src={`${BASE_URL}${post.author.avatar}`}
+                  alt={post.author.username}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                  {post.author.username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span>u/{post.author.username}</span>
+            </Link>
+            <span>•</span>
             <span className="category-badge">
               r/{post.category}
             </span>
-            <span>•</span>
-            <span>Posted by u/{post.author.username}</span>
             <span>•</span>
             <span className="flex items-center space-x-1">
               <Clock className="w-3 h-3" />
