@@ -1,0 +1,21 @@
+# Render.com Blueprint
+# This file enables one-click deploy on Render.com
+
+services:
+  - type: web
+    name: bk-forum-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE
+        value: 30d
+      - key: FRONTEND_URL
+        sync: false

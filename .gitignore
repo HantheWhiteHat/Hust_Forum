@@ -15,6 +15,10 @@ yarn-error.log*
 dist/
 build/
 
+# Uploads (user uploaded files)
+uploads/
+!uploads/.gitkeep
+
 # IDE
 .vscode/
 .idea/

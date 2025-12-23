@@ -360,7 +360,7 @@ const PostDetail = () => {
               <ArrowUp className="w-5 h-5" />
             </button>
             <span className="text-xs font-bold text-gray-700 my-1">
-              {post.upvotes || 0}
+              {(post.upvotes || 0) - (post.downvotes || 0)}
             </span>
             <button
               onClick={() => handleVote('downvote')}
