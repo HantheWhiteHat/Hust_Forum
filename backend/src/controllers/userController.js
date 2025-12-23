@@ -17,6 +17,31 @@ const getUsers = async (req, res) => {
   }
 };
 
+// @desc    Search users by username
+// @route   GET /api/users/search
+// @access  Public
+const searchUsers = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    if (!search || !search.trim()) {
+      return res.json({ users: [] });
+    }
+
+    const users = await User.find({
+      isActive: true,
+      username: { $regex: search.trim(), $options: 'i' }
+    })
+      .select('_id username avatar bio createdAt')
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    res.json({ users, total: users.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get single user
 // @route   GET /api/users/:id
 // @access  Private
@@ -113,6 +138,7 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getUsers,
+  searchUsers,
   getUser,
   updateUser,
   deleteUser,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { TrendingUp, Sparkles, Trophy, X, Search } from 'lucide-react'
+import { TrendingUp, Sparkles, Trophy, X, Search, User, FileText } from 'lucide-react'
 import api from '../api/api'
 import PostCard from '../components/PostCard'
 import { getSocket } from '../api/socket'
@@ -8,14 +8,19 @@ import { getSocket } from '../api/socket'
 const Home = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [posts, setPosts] = useState([])
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({})
+  const [searchType, setSearchType] = useState('posts') // 'posts' or 'users'
   const [filters, setFilters] = useState({
     page: 1,
     category: '',
     search: searchParams.get('search') || '',
     sort: 'newest'
   })
+
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
 
   // Sync search param from URL
   useEffect(() => {
@@ -38,9 +43,29 @@ const Home = () => {
     }
   }, [filters])
 
+  const fetchUsers = useCallback(async () => {
+    if (!filters.search) {
+      setUsers([])
+      return
+    }
+    try {
+      setLoading(true)
+      const response = await api.get('/users/search', { params: { search: filters.search } })
+      setUsers(response.data.users || [])
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [filters.search])
+
   useEffect(() => {
-    fetchPosts()
-  }, [fetchPosts])
+    if (searchType === 'posts') {
+      fetchPosts()
+    } else {
+      fetchUsers()
+    }
+  }, [fetchPosts, fetchUsers, searchType])
 
   const handleSortChange = (value) => {
     setFilters(prev => ({ ...prev, sort: value, page: 1 }))
@@ -58,6 +83,12 @@ const Home = () => {
   const clearSearch = () => {
     setFilters(prev => ({ ...prev, search: '', page: 1 }))
     setSearchParams({})
+    setSearchType('posts')
+    setUsers([])
+  }
+
+  const handleSearchTypeChange = (type) => {
+    setSearchType(type)
   }
 
   // OPTIMIZED: Incremental updates instead of full refresh
@@ -188,42 +219,118 @@ const Home = () => {
 
         {/* Search Results Banner */}
         {filters.search && (
-          <div className="bg-white border border-gray-300 rounded mb-4 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-700">
-                Search results for: <strong className="text-gray-900">"{filters.search}"</strong>
-              </span>
-              <span className="text-gray-500 text-sm">({posts.length} posts)</span>
+          <div className="bg-white border border-gray-300 rounded-lg mb-4 overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <Search className="w-4 h-4 text-gray-500" />
+                <span className="text-gray-700">
+                  Search results for: <strong className="text-gray-900">"{filters.search}"</strong>
+                </span>
+              </div>
+              <button
+                onClick={clearSearch}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
             </div>
-            <button
-              onClick={clearSearch}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition"
-            >
-              <X className="w-4 h-4" />
-              Clear
-            </button>
+
+            {/* Toggle Buttons */}
+            <div className="px-4 py-2 bg-gray-50 flex items-center gap-2">
+              <button
+                onClick={() => handleSearchTypeChange('posts')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${searchType === 'posts'
+                  ? 'bg-[#FF4500] text-white shadow-sm'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                  }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Posts
+                <span className={`text-xs ${searchType === 'posts' ? 'text-white/80' : 'text-gray-400'}`}>
+                  ({posts.length})
+                </span>
+              </button>
+              <button
+                onClick={() => handleSearchTypeChange('users')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${searchType === 'users'
+                  ? 'bg-[#FF4500] text-white shadow-sm'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                  }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                Users
+                <span className={`text-xs ${searchType === 'users' ? 'text-white/80' : 'text-gray-400'}`}>
+                  ({users.length})
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Posts */}
-        <div className="space-y-2">
-          {posts.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded border border-gray-300">
-              <p className="text-gray-500 text-lg">No posts found</p>
-              <Link
-                to="/create-post"
-                className="inline-block mt-4 px-6 py-2 bg-[#FF4500] text-white rounded-full font-bold hover:bg-[#FF5722] transition"
-              >
-                Create the first post
-              </Link>
-            </div>
-          ) : (
-            posts.map((post) => (
-              <PostCard key={post._id} post={post} />
-            ))
-          )}
-        </div>
+        {/* User Results */}
+        {filters.search && searchType === 'users' && (
+          <div className="space-y-2 mb-4">
+            {users.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded border border-gray-300">
+                <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No users found matching "{filters.search}"</p>
+              </div>
+            ) : (
+              users.map((user) => (
+                <Link
+                  key={user._id}
+                  to={`/profile/${user._id}`}
+                  className="block bg-white border border-gray-300 rounded-lg p-4 hover:border-[#FF4500] hover:shadow-sm transition group"
+                >
+                  <div className="flex items-center gap-3">
+                    {user.avatar ? (
+                      <img
+                        src={`${BASE_URL}${user.avatar}`}
+                        alt={user.username}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 group-hover:border-[#FF4500] transition"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-[#FF4500] rounded-full flex items-center justify-center text-white text-lg font-bold border-2 border-transparent group-hover:border-[#FF5722] transition">
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 group-hover:text-[#FF4500] transition">
+                        u/{user.username}
+                      </h3>
+                      {user.bio && (
+                        <p className="text-sm text-gray-500 truncate">{user.bio}</p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Posts - hide when showing user search results */}
+        {(!filters.search || searchType === 'posts') && (
+          <div className="space-y-2">
+            {posts.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded border border-gray-300">
+                <p className="text-gray-500 text-lg">No posts found</p>
+                <Link
+                  to="/create-post"
+                  className="inline-block mt-4 px-6 py-2 bg-[#FF4500] text-white rounded-full font-bold hover:bg-[#FF5722] transition"
+                >
+                  Create the first post
+                </Link>
+              </div>
+            ) : (
+              posts.map((post) => (
+                <PostCard key={post._id} post={post} />
+              ))
+            )}
+          </div>
+        )}
 
         {/* Pagination */}
         {pagination.pages > 1 && (

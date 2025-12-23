@@ -127,29 +127,7 @@ const CreatePost = () => {
         mediaWrapper.appendChild(mediaElement)
         mediaWrapper.appendChild(removeBtn)
 
-        // Create caption input
-        const captionWrapper = document.createElement('div')
-        captionWrapper.className = 'p-2'
-
-        const captionInput = document.createElement('input')
-        captionInput.type = 'text'
-        captionInput.placeholder = 'Add a caption (optional)'
-        captionInput.className = 'w-full px-2 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-orange-500'
-        captionInput.setAttribute('data-caption-for', mediaId)
-        captionInput.setAttribute('autocomplete', 'off')
-        captionInput.setAttribute('spellcheck', 'false')
-        captionInput.addEventListener('keydown', (e) => {
-            e.stopPropagation()
-        })
-        captionInput.addEventListener('paste', (e) => {
-            e.preventDefault()
-            const text = e.clipboardData.getData('text/plain')
-            captionInput.value = text.substring(0, 200)
-        })
-
-        captionWrapper.appendChild(captionInput)
         container.appendChild(mediaWrapper)
-        container.appendChild(captionWrapper)
 
         // Insert into editor
         if (editorRef.current) {
@@ -238,33 +216,7 @@ const CreatePost = () => {
                 mediaWrapper.appendChild(mediaElement)
                 mediaWrapper.appendChild(removeBtn)
 
-                // Create caption input (PLAIN TEXT ONLY)
-                const captionWrapper = document.createElement('div')
-                captionWrapper.className = 'p-2'
-
-                const captionInput = document.createElement('input')
-                captionInput.type = 'text'
-                captionInput.placeholder = 'Add a caption (optional)'
-                captionInput.className = 'w-full px-2 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-orange-500'
-                captionInput.setAttribute('data-caption-for', mediaId)
-                // Prevent any formatting or special input
-                captionInput.setAttribute('autocomplete', 'off')
-                captionInput.setAttribute('spellcheck', 'false')
-                // Stop event propagation to prevent editor commands
-                captionInput.addEventListener('keydown', (e) => {
-                    e.stopPropagation() // Prevent Ctrl+B, Ctrl+I from reaching editor
-                })
-                captionInput.addEventListener('paste', (e) => {
-                    e.preventDefault()
-                    // Only paste plain text
-                    const text = e.clipboardData.getData('text/plain')
-                    captionInput.value = text.substring(0, 200) // Max 200 chars
-                })
-
-                captionWrapper.appendChild(captionInput)
-
                 container.appendChild(mediaWrapper)
-                container.appendChild(captionWrapper)
 
                 // ✅ FIX: Always insert into editor, not at random cursor position
                 // This prevents inserting between title/category fields
@@ -355,14 +307,6 @@ const CreatePost = () => {
                 mediaFiles.forEach((media) => {
                     formData.append('media', media.file)
                 })
-
-                // Send captions as array in order
-                // 🔧 FIX: Query from editorRef instead of document
-                const captionsArray = mediaFiles.map(media => {
-                    const captionInput = editorRef.current.querySelector(`[data-caption-for="${media.id}"]`)
-                    return captionInput ? captionInput.value : ''
-                })
-                formData.append('captions', JSON.stringify(captionsArray))
             }
 
             const token = localStorage.getItem('token')
