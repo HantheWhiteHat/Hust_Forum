@@ -1,0 +1,16 @@
+# Ignore workspaces
+node_modules
+dist
+build
+
+# Ignore other files
+.env
+.env.*
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore docs
+/docs
+/coverage
