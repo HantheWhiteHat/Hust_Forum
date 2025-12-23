@@ -44,6 +44,137 @@ const CreatePost = () => {
         }
     }
 
+    // Handle paste events safely
+    const handlePaste = (e) => {
+        e.preventDefault()
+
+        // Check if pasting files (images/videos)
+        const items = e.clipboardData?.items
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i]
+                // Handle pasted images
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile()
+                    if (file) {
+                        handlePastedFile(file, 'image')
+                        return
+                    }
+                }
+            }
+        }
+
+        // Always prioritize plain text to avoid HTML structure issues
+        let content = e.clipboardData?.getData('text/plain') || ''
+
+        if (content) {
+            // Escape HTML entities to prevent XSS
+            content = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+
+            // Convert newlines to <br> for proper display
+            content = content.replace(/\n/g, '<br>')
+
+            // Insert as HTML (with escaped content, so it's safe)
+            document.execCommand('insertHTML', false, content)
+        }
+    }
+
+    // Handle pasted files
+    const handlePastedFile = (file, type) => {
+        const mediaId = `media-${Date.now()}-${Math.random()}`
+        const preview = URL.createObjectURL(file)
+
+        // Store file reference
+        setMediaFiles(prev => [...prev, { id: mediaId, file, type }])
+
+        // Create media container
+        const container = document.createElement('div')
+        container.className = 'media-block my-3 border border-gray-300 rounded overflow-hidden bg-gray-50'
+        container.setAttribute('data-media-id', mediaId)
+        container.contentEditable = false
+
+        // Create media element
+        const mediaWrapper = document.createElement('div')
+        mediaWrapper.className = 'relative'
+
+        let mediaElement
+        if (type === 'image') {
+            mediaElement = document.createElement('img')
+            mediaElement.src = preview
+            mediaElement.className = 'w-full max-h-96 object-contain bg-black'
+        } else {
+            mediaElement = document.createElement('video')
+            mediaElement.src = preview
+            mediaElement.className = 'w-full max-h-96 object-contain bg-black'
+            mediaElement.controls = true
+        }
+
+        // Create remove button
+        const removeBtn = document.createElement('button')
+        removeBtn.innerHTML = '×'
+        removeBtn.className = 'absolute top-2 right-2 w-6 h-6 bg-black/70 hover:bg-black/90 text-white rounded-full text-xl leading-none'
+        removeBtn.onclick = (e) => {
+            e.preventDefault()
+            container.remove()
+            setMediaFiles(prev => prev.filter(m => m.id !== mediaId))
+        }
+
+        mediaWrapper.appendChild(mediaElement)
+        mediaWrapper.appendChild(removeBtn)
+
+        // Create caption input
+        const captionWrapper = document.createElement('div')
+        captionWrapper.className = 'p-2'
+
+        const captionInput = document.createElement('input')
+        captionInput.type = 'text'
+        captionInput.placeholder = 'Add a caption (optional)'
+        captionInput.className = 'w-full px-2 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-orange-500'
+        captionInput.setAttribute('data-caption-for', mediaId)
+        captionInput.setAttribute('autocomplete', 'off')
+        captionInput.setAttribute('spellcheck', 'false')
+        captionInput.addEventListener('keydown', (e) => {
+            e.stopPropagation()
+        })
+        captionInput.addEventListener('paste', (e) => {
+            e.preventDefault()
+            const text = e.clipboardData.getData('text/plain')
+            captionInput.value = text.substring(0, 200)
+        })
+
+        captionWrapper.appendChild(captionInput)
+        container.appendChild(mediaWrapper)
+        container.appendChild(captionWrapper)
+
+        // Insert into editor
+        if (editorRef.current) {
+            const selection = window.getSelection()
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0)
+                range.deleteContents()
+                range.insertNode(container)
+
+                // Move cursor after media
+                const newRange = document.createRange()
+                newRange.setStartAfter(container)
+                newRange.collapse(true)
+                selection.removeAllRanges()
+                selection.addRange(newRange)
+            } else {
+                editorRef.current.appendChild(container)
+            }
+
+            // Add line break after media
+            const br = document.createElement('br')
+            editorRef.current.appendChild(br)
+        }
+    }
+
     // Insert media at cursor position
     const insertMediaAtCursor = (type) => {
         // 🔧 FIX: Focus editor first to prevent duplicate when cursor in caption
@@ -347,6 +478,7 @@ const CreatePost = () => {
                             <div
                                 ref={editorRef}
                                 onKeyDown={handleKeyDown}
+                                onPaste={handlePaste}
                                 className="editor-content w-full px-3 py-3 text-sm border border-gray-300 rounded-b focus:outline-none focus:ring-2 focus:ring-[#FF4500] min-h-[300px] bg-white"
                                 data-placeholder="Text (optional)"
                             />

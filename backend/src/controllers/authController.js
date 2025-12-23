@@ -3,8 +3,11 @@ const User = require('../models/User');
 
 // Generate JWT Token
 const generateToken = (id) => {
+  // JWT_EXPIRE should be a string like '30d', '7d', '24h' or number in seconds
+  const expiresIn = process.env.JWT_EXPIRE || '30d';
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+    expiresIn: expiresIn,
   });
 };
 
