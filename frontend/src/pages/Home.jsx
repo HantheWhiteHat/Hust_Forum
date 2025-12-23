@@ -1,20 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { TrendingUp, Sparkles, Trophy, Filter } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { TrendingUp, Sparkles, Trophy, X, Search } from 'lucide-react'
 import api from '../api/api'
 import PostCard from '../components/PostCard'
 import { getSocket } from '../api/socket'
 
 const Home = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({})
   const [filters, setFilters] = useState({
     page: 1,
     category: '',
-    search: '',
+    search: searchParams.get('search') || '',
     sort: 'newest'
   })
+
+  // Sync search param from URL
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || ''
+    if (urlSearch !== filters.search) {
+      setFilters(prev => ({ ...prev, search: urlSearch, page: 1 }))
+    }
+  }, [searchParams])
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -44,6 +53,11 @@ const Home = () => {
   const handlePageChange = (page) => {
     setFilters(prev => ({ ...prev, page }))
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const clearSearch = () => {
+    setFilters(prev => ({ ...prev, search: '', page: 1 }))
+    setSearchParams({})
   }
 
   // OPTIMIZED: Incremental updates instead of full refresh
@@ -119,48 +133,78 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#DAE0E6]">
       <div className="max-w-5xl mx-auto px-4 py-4">
-        {/* Sort Tabs - Reddit style */}
-        <div className="bg-white border border-gray-300 rounded mb-4 px-2 flex items-center space-x-1">
-          <button
-            onClick={() => handleSortChange('newest')}
-            className={`sort-tab ${filters.sort === 'newest' ? 'sort-tab-active' : ''}`}
-          >
-            <Sparkles className="w-4 h-4 inline mr-1" />
-            New
-          </button>
-          <button
-            onClick={() => handleSortChange('popular')}
-            className={`sort-tab ${filters.sort === 'popular' ? 'sort-tab-active' : ''}`}
-          >
-            <TrendingUp className="w-4 h-4 inline mr-1" />
-            Hot
-          </button>
-          <button
-            onClick={() => handleSortChange('most_viewed')}
-            className={`sort-tab ${filters.sort === 'most_viewed' ? 'sort-tab-active' : ''}`}
-          >
-            <Trophy className="w-4 h-4 inline mr-1" />
-            Top
-          </button>
-
-          {/* Category Filter */}
-          <div className="ml-auto flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={filters.category}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="text-sm border-none bg-transparent focus:outline-none focus:ring-0 text-gray-700 font-medium cursor-pointer"
+        {/* Sort Tabs - Modern style */}
+        <div className="bg-white border border-gray-300 rounded-lg mb-4 px-4 py-2 flex items-center justify-between">
+          {/* Sort Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleSortChange('newest')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'newest'
+                ? 'bg-[#FF4500] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
-              <option value="">All Topics</option>
-              <option value="general">General</option>
-              <option value="academic">Academic</option>
-              <option value="technology">Technology</option>
-              <option value="sports">Sports</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="other">Other</option>
-            </select>
+              <Sparkles className="w-4 h-4" />
+              New
+            </button>
+            <button
+              onClick={() => handleSortChange('popular')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'popular'
+                ? 'bg-[#FF4500] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Hot
+            </button>
+            <button
+              onClick={() => handleSortChange('most_viewed')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'most_viewed'
+                ? 'bg-[#FF4500] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
+            >
+              <Trophy className="w-4 h-4" />
+              Top
+            </button>
           </div>
+
+          {/* Topic Dropdown */}
+          <select
+            value={filters.category}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full border-none focus:outline-none focus:ring-2 focus:ring-[#FF4500] cursor-pointer transition-all appearance-none pr-8"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px' }}
+          >
+            <option value="">All Topics</option>
+            <option value="general">General</option>
+            <option value="academic">Academic</option>
+            <option value="technology">Technology</option>
+            <option value="sports">Sports</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="other">Other</option>
+          </select>
         </div>
+
+        {/* Search Results Banner */}
+        {filters.search && (
+          <div className="bg-white border border-gray-300 rounded mb-4 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-700">
+                Search results for: <strong className="text-gray-900">"{filters.search}"</strong>
+              </span>
+              <span className="text-gray-500 text-sm">({posts.length} posts)</span>
+            </div>
+            <button
+              onClick={clearSearch}
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </button>
+          </div>
+        )}
 
         {/* Posts */}
         <div className="space-y-2">

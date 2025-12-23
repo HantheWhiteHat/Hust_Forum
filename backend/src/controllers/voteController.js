@@ -2,7 +2,6 @@ const Vote = require('../models/Vote');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const User = require('../models/User');
-const mongoose = require('mongoose');
 const { getIO } = require('../socket');
 
 // Helper function to emit socket events safely
@@ -18,19 +17,15 @@ const emitSocketEvent = (eventName, payload, roomName = null) => {
   }
 };
 
-// @desc    Vote on post or comment
+// @desc    Vote on post or comment (toggle vote)
 // @route   POST /api/votes
 // @access  Private
 const createVote = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { postId, commentId, type } = req.body;
 
     // Validate that either postId or commentId is provided, but not both
     if ((postId && commentId) || (!postId && !commentId)) {
-      await session.abortTransaction();
       return res.status(400).json({ message: 'Must provide either postId or commentId, but not both' });
     }
 
@@ -38,56 +33,154 @@ const createVote = async (req, res) => {
     const existingVote = await Vote.findOne({
       user: req.user.id,
       ...(postId ? { post: postId } : { comment: commentId })
-    }).session(session);
+    });
 
-    if (existingVote) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: 'You have already voted on this item' });
+    // If same vote exists, remove it (toggle off)
+    if (existingVote && existingVote.type === type) {
+      // Decrement the count
+      const updateField = type === 'upvote' ? 'upvotes' : 'downvotes';
+
+      if (postId) {
+        const result = await Post.findByIdAndUpdate(
+          postId,
+          { $inc: { [updateField]: -1 } },
+          { new: true }
+        );
+        await Vote.findByIdAndDelete(existingVote._id);
+
+        emitSocketEvent('post:voted', {
+          postId: postId.toString(),
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+        }, `post:${postId}`);
+
+        return res.json({
+          message: 'Vote removed',
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+          userVote: null
+        });
+      } else {
+        const result = await Comment.findByIdAndUpdate(
+          commentId,
+          { $inc: { [updateField]: -1 } },
+          { new: true }
+        );
+        await Vote.findByIdAndDelete(existingVote._id);
+
+        emitSocketEvent('comment:voted', {
+          postId: result.post.toString(),
+          commentId: commentId.toString(),
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+        }, `post:${result.post.toString()}`);
+
+        return res.json({
+          message: 'Vote removed',
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+          userVote: null
+        });
+      }
     }
 
-    // Create vote
-    const vote = await Vote.create([{
+    // If opposite vote exists, switch it
+    if (existingVote && existingVote.type !== type) {
+      const oldType = existingVote.type;
+      existingVote.type = type;
+      await existingVote.save();
+
+      // Update counts: decrement old, increment new
+      const incUpdate = oldType === 'upvote'
+        ? { upvotes: -1, downvotes: 1 }
+        : { upvotes: 1, downvotes: -1 };
+
+      if (postId) {
+        const result = await Post.findByIdAndUpdate(
+          postId,
+          { $inc: incUpdate },
+          { new: true }
+        );
+
+        emitSocketEvent('post:voted', {
+          postId: postId.toString(),
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+        }, `post:${postId}`);
+
+        return res.json({
+          message: 'Vote changed',
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+          userVote: type
+        });
+      } else {
+        const result = await Comment.findByIdAndUpdate(
+          commentId,
+          { $inc: incUpdate },
+          { new: true }
+        );
+
+        emitSocketEvent('comment:voted', {
+          postId: result.post.toString(),
+          commentId: commentId.toString(),
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+        }, `post:${result.post.toString()}`);
+
+        return res.json({
+          message: 'Vote changed',
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+          userVote: type
+        });
+      }
+    }
+
+    // Create new vote
+    const vote = await Vote.create({
       user: req.user.id,
       ...(postId ? { post: postId } : { comment: commentId }),
       type
-    }], { session });
+    });
 
-    // OPTIMIZED: Use atomic $inc operations to prevent race conditions
+    // Increment the count
+    const updateField = type === 'upvote' ? 'upvotes' : 'downvotes';
+
     if (postId) {
-      const updateField = type === 'upvote' ? 'upvotes' : 'downvotes';
       const result = await Post.findByIdAndUpdate(
         postId,
         { $inc: { [updateField]: 1 } },
-        { session, new: true }
+        { new: true }
       );
       if (!result) {
-        await session.abortTransaction();
+        await Vote.findByIdAndDelete(vote._id);
         return res.status(404).json({ message: 'Post not found' });
       }
 
-      // Socket emit after successful transaction
-      await session.commitTransaction();
       emitSocketEvent('post:voted', {
         postId: postId.toString(),
         upvotes: result.upvotes,
         downvotes: result.downvotes,
       }, `post:${postId}`);
 
-      return res.status(201).json(vote[0]);
+      return res.status(201).json({
+        vote,
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+        userVote: type
+      });
     } else {
-      const updateField = type === 'upvote' ? 'upvotes' : 'downvotes';
       const result = await Comment.findByIdAndUpdate(
         commentId,
         { $inc: { [updateField]: 1 } },
-        { session, new: true }
+        { new: true }
       );
       if (!result) {
-        await session.abortTransaction();
+        await Vote.findByIdAndDelete(vote._id);
         return res.status(404).json({ message: 'Comment not found' });
       }
 
-      // Socket emit after successful transaction
-      await session.commitTransaction();
       emitSocketEvent('comment:voted', {
         postId: result.post.toString(),
         commentId: commentId.toString(),
@@ -95,14 +188,16 @@ const createVote = async (req, res) => {
         downvotes: result.downvotes,
       }, `post:${result.post.toString()}`);
 
-      return res.status(201).json(vote[0]);
+      return res.status(201).json({
+        vote,
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+        userVote: type
+      });
     }
   } catch (error) {
-    await session.abortTransaction();
     console.error('createVote error:', error);
     res.status(500).json({ message: error.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -110,21 +205,16 @@ const createVote = async (req, res) => {
 // @route   PUT /api/votes/:id
 // @access  Private
 const updateVote = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { type } = req.body;
-    const vote = await Vote.findById(req.params.id).session(session);
+    const vote = await Vote.findById(req.params.id);
 
     if (!vote) {
-      await session.abortTransaction();
       return res.status(404).json({ message: 'Vote not found' });
     }
 
     // Check if user is the voter
     if (vote.user.toString() !== req.user.id) {
-      await session.abortTransaction();
       return res.status(401).json({ message: 'Not authorized to update this vote' });
     }
 
@@ -132,14 +222,13 @@ const updateVote = async (req, res) => {
 
     // If type hasn't changed, no need to update
     if (oldType === type) {
-      await session.abortTransaction();
       return res.json(vote);
     }
 
     vote.type = type;
-    await vote.save({ session });
+    await vote.save();
 
-    // OPTIMIZED: Use atomic $inc for both increment and decrement in one operation
+    // Update counts
     const incUpdate = oldType === 'upvote'
       ? { upvotes: -1, downvotes: 1 }
       : { upvotes: 1, downvotes: -1 };
@@ -148,12 +237,9 @@ const updateVote = async (req, res) => {
       const result = await Post.findByIdAndUpdate(
         vote.post,
         { $inc: incUpdate },
-        { session, new: true }
+        { new: true }
       );
 
-      await session.commitTransaction();
-
-      // Socket emit after successful transaction
       emitSocketEvent('post:voted', {
         postId: vote.post.toString(),
         upvotes: result.upvotes,
@@ -163,29 +249,21 @@ const updateVote = async (req, res) => {
       const result = await Comment.findByIdAndUpdate(
         vote.comment,
         { $inc: incUpdate },
-        { session, new: true }
+        { new: true }
       );
 
-      await session.commitTransaction();
-
-      // Socket emit after successful transaction
       emitSocketEvent('comment:voted', {
         postId: result.post.toString(),
         commentId: vote.comment.toString(),
         upvotes: result.upvotes,
         downvotes: result.downvotes,
       }, `post:${result.post.toString()}`);
-    } else {
-      await session.commitTransaction();
     }
 
     res.json(vote);
   } catch (error) {
-    await session.abortTransaction();
     console.error('updateVote error:', error);
     res.status(500).json({ message: error.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -193,37 +271,30 @@ const updateVote = async (req, res) => {
 // @route   DELETE /api/votes/:id
 // @access  Private
 const deleteVote = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const vote = await Vote.findById(req.params.id).session(session);
+    const vote = await Vote.findById(req.params.id);
 
     if (!vote) {
-      await session.abortTransaction();
       return res.status(404).json({ message: 'Vote not found' });
     }
 
     // Check if user is the voter
     if (vote.user.toString() !== req.user.id) {
-      await session.abortTransaction();
       return res.status(401).json({ message: 'Not authorized to delete this vote' });
     }
 
-    // OPTIMIZED: Use atomic $inc to decrement the appropriate counter
+    // Decrement the appropriate counter
     const updateField = vote.type === 'upvote' ? 'upvotes' : 'downvotes';
 
     if (vote.post) {
       const result = await Post.findByIdAndUpdate(
         vote.post,
         { $inc: { [updateField]: -1 } },
-        { session, new: true }
+        { new: true }
       );
 
-      await Vote.findByIdAndDelete(req.params.id).session(session);
-      await session.commitTransaction();
+      await Vote.findByIdAndDelete(req.params.id);
 
-      // Socket emit after successful transaction
       emitSocketEvent('post:voted', {
         postId: vote.post.toString(),
         upvotes: result.upvotes,
@@ -233,13 +304,11 @@ const deleteVote = async (req, res) => {
       const result = await Comment.findByIdAndUpdate(
         vote.comment,
         { $inc: { [updateField]: -1 } },
-        { session, new: true }
+        { new: true }
       );
 
-      await Vote.findByIdAndDelete(req.params.id).session(session);
-      await session.commitTransaction();
+      await Vote.findByIdAndDelete(req.params.id);
 
-      // Socket emit after successful transaction
       emitSocketEvent('comment:voted', {
         postId: result.post.toString(),
         commentId: vote.comment.toString(),
@@ -247,17 +316,13 @@ const deleteVote = async (req, res) => {
         downvotes: result.downvotes,
       }, `post:${result.post.toString()}`);
     } else {
-      await Vote.findByIdAndDelete(req.params.id).session(session);
-      await session.commitTransaction();
+      await Vote.findByIdAndDelete(req.params.id);
     }
 
     res.json({ message: 'Vote deleted successfully' });
   } catch (error) {
-    await session.abortTransaction();
     console.error('deleteVote error:', error);
     res.status(500).json({ message: error.message });
-  } finally {
-    session.endSession();
   }
 };
 

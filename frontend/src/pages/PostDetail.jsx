@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowUp, ArrowDown, MessageCircle, Eye, ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowUp, ArrowDown, MessageCircle, Eye, ArrowLeft, Trash2, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import api from '../api/api'
 import { getSocket } from '../api/socket'
@@ -18,10 +18,12 @@ const PostDetail = () => {
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+
 
   // Helper: Update a comment in nested tree structure
   const updateCommentInTree = (comments, updatedComment) => {
@@ -221,16 +223,28 @@ const PostDetail = () => {
     }
   }
 
-  const handleDelete = async () => {
-    if (!post || !user || post.author._id !== user._id) return
+  const handleDeleteClick = () => {
+    if (!post || !user) return
 
-    const confirmed = window.confirm('Are you sure you want to delete this post?')
-    if (!confirmed) return
+    // Compare as strings to avoid ObjectId comparison issues
+    const isAuthor = post.author._id?.toString() === user._id?.toString() ||
+      post.author._id === user._id ||
+      post.author === user._id
 
+    if (!isAuthor) {
+      toast.error('You can only delete your own posts')
+      return
+    }
+
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
     try {
       setDeleting(true)
+      setShowDeleteModal(false)
       await api.delete(`/posts/${post._id}`)
-      toast.success('Post deleted')
+      toast.success('Post deleted successfully')
       navigate('/')
     } catch (error) {
       console.error('Error deleting post:', error)
@@ -292,6 +306,40 @@ const PostDetail = () => {
 
   return (
     <div className="min-h-screen bg-[#DAE0E6]">
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Post</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this post? This action cannot be undone. All comments and votes will also be deleted.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Post'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto px-4 py-4">
         <Link
           to="/"
@@ -347,14 +395,16 @@ const PostDetail = () => {
                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
               </div>
 
-              {user && post.author._id === user._id && (
+              {/* Delete button - only show for post author */}
+              {user && (post.author._id?.toString() === user._id?.toString() || post.author._id === user._id) && (
                 <button
-                  onClick={handleDelete}
+                  onClick={handleDeleteClick}
                   disabled={deleting}
-                  className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 rounded-full border border-red-200 hover:border-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete this post"
                 >
-                  <Trash2 className="w-4 h-4 inline mr-1" />
-                  {deleting ? 'Deleting...' : 'Delete'}
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{deleting ? 'Deleting...' : 'Delete'}</span>
                 </button>
               )}
             </div>

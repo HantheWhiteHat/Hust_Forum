@@ -1,9 +1,61 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { MessageCircle, Eye, ArrowUp, ArrowDown, Clock } from 'lucide-react'
+import { useAuth } from '../store/authContext'
+import api from '../api/api'
+import toast from 'react-hot-toast'
 
 const PostCard = ({ post }) => {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
+
+  // Local state for votes
+  const [votes, setVotes] = useState({
+    upvotes: post.upvotes || 0,
+    downvotes: post.downvotes || 0,
+    userVote: post.userVote || null // 'upvote', 'downvote', or null
+  })
+  const [isVoting, setIsVoting] = useState(false)
+
+  const handleVote = async (type, e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!user) {
+      toast.error('Please login to vote')
+      navigate('/login')
+      return
+    }
+
+    if (isVoting) return
+
+    try {
+      setIsVoting(true)
+      const response = await api.post('/votes', {
+        postId: post._id,
+        type
+      })
+
+      // Update local state based on response
+      if (response.data) {
+        setVotes(prev => ({
+          upvotes: response.data.upvotes ?? prev.upvotes,
+          downvotes: response.data.downvotes ?? prev.downvotes,
+          userVote: response.data.userVote ?? (prev.userVote === type ? null : type)
+        }))
+      }
+    } catch (error) {
+      console.error('Vote error:', error)
+      toast.error(error.response?.data?.message || 'Failed to vote')
+    } finally {
+      setIsVoting(false)
+    }
+  }
+
+  // Calculate net votes for display
+  const netVotes = votes.upvotes - votes.downvotes
 
   const handleImageError = (e) => {
     e.currentTarget.style.display = 'none'
@@ -37,13 +89,30 @@ const PostCard = ({ post }) => {
     <article className="flex bg-white border border-gray-300 hover:border-gray-400 transition-all duration-150 rounded overflow-hidden">
       {/* Vote Section */}
       <div className="w-10 bg-gray-50 flex flex-col items-center py-2 px-1">
-        <button className="vote-btn text-gray-400 hover:text-[#FF4500] hover:bg-red-50">
+        <button
+          onClick={(e) => handleVote('upvote', e)}
+          disabled={isVoting}
+          className={`vote-btn p-1 rounded transition-all ${votes.userVote === 'upvote'
+              ? 'text-[#FF4500] bg-red-50'
+              : 'text-gray-400 hover:text-[#FF4500] hover:bg-red-50'
+            } disabled:opacity-50`}
+        >
           <ArrowUp className="w-5 h-5" />
         </button>
-        <span className="text-xs font-bold text-gray-700 my-1">
-          {post.upvotes || 0}
+        <span className={`text-xs font-bold my-1 ${votes.userVote === 'upvote' ? 'text-[#FF4500]' :
+            votes.userVote === 'downvote' ? 'text-[#7193FF]' :
+              'text-gray-700'
+          }`}>
+          {netVotes}
         </span>
-        <button className="vote-btn text-gray-400 hover:text-[#7193FF] hover:bg-blue-50">
+        <button
+          onClick={(e) => handleVote('downvote', e)}
+          disabled={isVoting}
+          className={`vote-btn p-1 rounded transition-all ${votes.userVote === 'downvote'
+              ? 'text-[#7193FF] bg-blue-50'
+              : 'text-gray-400 hover:text-[#7193FF] hover:bg-blue-50'
+            } disabled:opacity-50`}
+        >
           <ArrowDown className="w-5 h-5" />
         </button>
       </div>
