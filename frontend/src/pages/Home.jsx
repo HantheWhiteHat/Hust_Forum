@@ -164,48 +164,48 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#DAE0E6]">
       <div className="max-w-5xl mx-auto px-4 py-4">
-        {/* Sort Tabs - Modern style */}
-        <div className="bg-white border border-gray-300 rounded-lg mb-4 px-4 py-2 flex items-center justify-between">
-          {/* Sort Buttons */}
-          <div className="flex items-center gap-1">
+        {/* Sort Tabs - Modern style with mobile responsive */}
+        <div className="bg-white border border-gray-300 rounded-lg mb-4 px-2 sm:px-4 py-2 flex items-center justify-between gap-2">
+          {/* Sort Buttons - Compact on mobile */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <button
               onClick={() => handleSortChange('newest')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'newest'
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${filters.sort === 'newest'
                 ? 'bg-[#FF4500] text-white shadow-sm'
                 : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <Sparkles className="w-4 h-4" />
-              New
+              <span className="hidden sm:inline">New</span>
             </button>
             <button
               onClick={() => handleSortChange('popular')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'popular'
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${filters.sort === 'popular'
                 ? 'bg-[#FF4500] text-white shadow-sm'
                 : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <TrendingUp className="w-4 h-4" />
-              Hot
+              <span className="hidden sm:inline">Hot</span>
             </button>
             <button
               onClick={() => handleSortChange('most_viewed')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.sort === 'most_viewed'
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${filters.sort === 'most_viewed'
                 ? 'bg-[#FF4500] text-white shadow-sm'
                 : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <Trophy className="w-4 h-4" />
-              Top
+              <span className="hidden sm:inline">Top</span>
             </button>
           </div>
 
-          {/* Topic Dropdown */}
+          {/* Topic Dropdown - Compact on mobile */}
           <select
             value={filters.category}
             onChange={(e) => handleCategoryChange(e.target.value)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full border-none focus:outline-none focus:ring-2 focus:ring-[#FF4500] cursor-pointer transition-all appearance-none pr-8"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px' }}
+            className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full border-none focus:outline-none focus:ring-2 focus:ring-[#FF4500] cursor-pointer transition-all appearance-none pr-6 sm:pr-8 max-w-[120px] sm:max-w-none truncate"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center', backgroundSize: '14px' }}
           >
             <option value="">All Topics</option>
             <option value="general">General</option>

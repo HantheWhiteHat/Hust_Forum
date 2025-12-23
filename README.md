@@ -1,229 +1,215 @@
-# BK Forum
+<p align="center">
+  <img src="frontend/public/favico.png" alt="BK Forum Logo" width="80" height="80">
+</p>
 
-A modern forum application built with Node.js, Express, MongoDB, and React.
+<h1 align="center">🎓 BK Forum</h1>
 
-## Features
+<p align="center">
+  <strong>A modern, real-time forum platform for university students</strong>
+</p>
 
-- **User Authentication**: Register, login, and user management
-- **Posts**: Create, read, update, and delete forum posts
-- **Comments**: Nested comment system with replies
-- **Voting**: Upvote and downvote posts and comments
-- **Categories**: Organize posts by categories
-- **Search**: Full-text search functionality
-- **Responsive Design**: Mobile-friendly interface
-- **Real-time Updates**: Live comment and vote updates
+<p align="center">
+  <a href="https://hust-forum.vercel.app">🌐 Live Demo</a> •
+  <a href="#features">✨ Features</a> •
+  <a href="#tech-stack">🛠 Tech Stack</a> •
+  <a href="#getting-started">🚀 Getting Started</a>
+</p>
 
-## Tech Stack
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18.2-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js" alt="Node.js">
+  <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb" alt="MongoDB">
+  <img src="https://img.shields.io/badge/Socket.io-4.8-010101?style=flat-square&logo=socket.io" alt="Socket.io">
+</p>
 
-### Backend
-- Node.js
-- Express.js
-- MongoDB with Mongoose
-- JWT Authentication
-- bcryptjs for password hashing
-- Express Rate Limiting
-- CORS support
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔐 **Authentication** | JWT-based login/register with secure password hashing |
+| 📝 **Rich Text Posts** | WYSIWYG editor with inline images & videos |
+| 💬 **Nested Comments** | Threaded comment system with infinite replies |
+| ⬆️ **Voting System** | Upvote/downvote posts and comments |
+| 🔍 **Search** | Full-text search for posts and users |
+| 📱 **Responsive** | Mobile-first design, works on all devices |
+| ⚡ **Real-time** | Live updates via Socket.io |
+| 🖼️ **Media Upload** | Support for images and videos |
+| 👤 **User Profiles** | Customizable avatars and bio |
+
+---
+
+## 🛠 Tech Stack
 
 ### Frontend
-- React 18
-- React Router DOM
-- Vite
-- Tailwind CSS
-- Axios for API calls
-- React Hook Form
-- React Hot Toast
-- Lucide React icons
-
-## Project Structure
-
 ```
-bkforum/
-├─ backend/
-│  ├─ Dockerfile
-│  ├─ package.json
-│  ├─ env.example
-│  ├─ src/
-│  │  ├─ server.js                    # entry point
-│  │  ├─ app.js                       # express app + middlewares
-│  │  ├─ config/
-│  │  │  └─ db.js
-│  │  ├─ middlewares/
-│  │  │  ├─ auth.js                   # verify JWT
-│  │  │  └─ errorHandler.js
-│  │  ├─ controllers/
-│  │  │  ├─ authController.js
-│  │  │  ├─ userController.js
-│  │  │  ├─ postController.js
-│  │  │  ├─ commentController.js
-│  │  │  └─ voteController.js
-│  │  ├─ models/
-│  │  │  ├─ User.js
-│  │  │  ├─ Post.js
-│  │  │  ├─ Comment.js
-│  │  │  └─ Vote.js
-│  │  ├─ routes/
-│  │  │  ├─ auth.js
-│  │  │  ├─ users.js
-│  │  │  ├─ posts.js
-│  │  │  ├─ comments.js
-│  │  │  └─ votes.js
-│  │  └─ utils/
-│  │     └─ paginate.js
-│  └─ tests/                           # unit tests
-│
-├─ frontend/
-│  ├─ Dockerfile
-│  ├─ package.json
-│  ├─ vite.config.js
-│  ├─ src/
-│  │  ├─ main.jsx
-│  │  ├─ App.jsx
-│  │  ├─ index.css
-│  │  ├─ api/                         # axios instances
-│  │  │  └─ api.js
-│  │  ├─ pages/
-│  │  │  ├─ Home.jsx
-│  │  │  ├─ Login.jsx
-│  │  │  ├─ Register.jsx
-│  │  │  ├─ PostDetail.jsx
-│  │  │  ├─ CreatePost.jsx
-│  │  │  └─ Profile.jsx
-│  │  ├─ components/
-│  │  │  ├─ Header.jsx
-│  │  │  ├─ PostCard.jsx
-│  │  │  └─ CommentTree.jsx
-│  │  └─ store/                       # context
-│  │     └─ authContext.js
-│  └─ public/
-│
-├─ docker-compose.yml
-└─ README.md
+React 18 • Vite • Tailwind CSS • React Router • Socket.io Client
+React Hook Form • React Hot Toast • Lucide Icons • Axios
 ```
 
-## Getting Started
+### Backend
+```
+Node.js • Express.js • MongoDB • Mongoose • JWT • Socket.io
+Multer • bcryptjs • Express Validator • Helmet
+```
+
+### Deployment
+```
+Frontend: Vercel • Backend: Render • Database: MongoDB Atlas
+```
+
+---
+
+## 📁 Project Structure
+
+```
+BK-Forum/
+├── 📂 backend/
+│   ├── src/
+│   │   ├── config/         # Database configuration
+│   │   ├── controllers/    # Route handlers
+│   │   ├── middlewares/    # Auth, validation, error handling
+│   │   ├── models/         # Mongoose schemas
+│   │   ├── routes/         # API routes
+│   │   ├── app.js          # Express app setup
+│   │   ├── server.js       # Entry point
+│   │   └── socket.js       # Socket.io configuration
+│   └── uploads/            # User uploaded media
+│
+├── 📂 frontend/
+│   ├── src/
+│   │   ├── api/            # Axios & Socket.io clients
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Page components
+│   │   ├── store/          # Auth context
+│   │   ├── App.jsx         # Main app with routing
+│   │   └── main.jsx        # Entry point
+│   └── public/             # Static assets
+│
+├── .env.example            # Environment template
+├── render.yaml             # Render deploy config
+└── docker-compose.yml      # Docker configuration
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- MongoDB
-- Docker (optional)
+- Node.js v18+
+- MongoDB (local or Atlas)
+- Git
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd bkforum
-   ```
-
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
-   cp env.example .env
-   # Edit .env with your configuration
-   npm run dev
-   ```
-
-3. **Frontend Setup**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-4. **Using Docker (Recommended)**
-   ```bash
-   docker-compose up -d
-   ```
-
-### Environment Variables
-
-Create a `.env` file in the backend directory:
-
-```env
-# Database
-MONGODB_URI=mongodb://localhost:27017/bkforum
-MONGODB_TEST_URI=mongodb://localhost:27017/bkforum_test
-
-# JWT
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
-
-# Server
-PORT=3000
-NODE_ENV=development
-
-# CORS
-CORS_ORIGIN=http://localhost:5173
-```
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user
-
-### Posts
-- `GET /api/posts` - Get all posts (with pagination, search, filters)
-- `GET /api/posts/:id` - Get single post
-- `POST /api/posts` - Create new post (auth required)
-- `PUT /api/posts/:id` - Update post (auth required)
-- `DELETE /api/posts/:id` - Delete post (auth required)
-
-### Comments
-- `GET /api/comments/post/:postId` - Get comments for a post
-- `POST /api/comments` - Create new comment (auth required)
-- `PUT /api/comments/:id` - Update comment (auth required)
-- `DELETE /api/comments/:id` - Delete comment (auth required)
-
-### Users
-- `GET /api/users` - Get all users (admin only)
-- `GET /api/users/:id` - Get single user
-- `PUT /api/users/:id` - Update user (auth required)
-- `DELETE /api/users/:id` - Delete user (admin only)
-
-### Votes
-- `POST /api/votes` - Create vote (auth required)
-- `PUT /api/votes/:id` - Update vote (auth required)
-- `DELETE /api/votes/:id` - Delete vote (auth required)
-
-## Development
-
-### Running Tests
 ```bash
+# Clone repository
+git clone https://github.com/HantheWhiteHat/Hust_Forum.git
+cd Hust_Forum
+
+# Install backend
 cd backend
-npm test
+npm install
+cp .env.example .env
+# Edit .env with your MongoDB URI
+
+# Install frontend
+cd ../frontend
+npm install
 ```
 
-### Linting
+### Development
+
 ```bash
+# Terminal 1 - Backend
+cd backend
+npm run dev
+
+# Terminal 2 - Frontend
 cd frontend
-npm run lint
+npm run dev
 ```
 
-## Deployment
+Open http://localhost:5173 in your browser.
 
-The application is containerized and ready for deployment with Docker Compose. Simply run:
+---
 
-```bash
-docker-compose up -d
+## 🔧 Environment Variables
+
+### Backend (`backend/.env`)
+```env
+NODE_ENV=development
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/bkforum
+JWT_SECRET=your-secret-key
+JWT_EXPIRE=30d
+FRONTEND_URL=http://localhost:5173
 ```
 
-This will start:
-- MongoDB on port 27017
-- Backend API on port 3000
-- Frontend on port 5173
+### Frontend (`frontend/.env`)
+```env
+VITE_API_URL=http://localhost:3000/api
+```
 
-## Contributing
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **Auth** |
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login user |
+| GET | `/api/auth/me` | Get current user |
+| **Posts** |
+| GET | `/api/posts` | Get posts (paginated) |
+| POST | `/api/posts` | Create post |
+| GET | `/api/posts/:id` | Get single post |
+| DELETE | `/api/posts/:id` | Delete post |
+| **Comments** |
+| GET | `/api/comments/post/:id` | Get post comments |
+| POST | `/api/comments` | Create comment |
+| **Votes** |
+| POST | `/api/votes` | Vote on post/comment |
+| **Users** |
+| GET | `/api/users/:id` | Get user profile |
+| PUT | `/api/users/:id` | Update profile |
+
+---
+
+## 🌐 Deployment
+
+### Live URLs
+| Service | URL |
+|---------|-----|
+| 🌐 Frontend | https://hust-forum.vercel.app |
+| 🔧 Backend | https://bk-forum-api.onrender.com |
+
+### Deploy Your Own
+
+1. **MongoDB Atlas** - Create free cluster
+2. **Render** - Deploy backend with env variables
+3. **Vercel** - Deploy frontend with `VITE_API_URL`
+
+---
+
+## 👥 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
+5. Open a Pull Request
 
-## License
+---
 
-This project is licensed under the MIT License.
+## 📄 License
 
+This project is licensed under the **MIT License**.
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/HantheWhiteHat">HantheWhiteHat</a>
+</p>
