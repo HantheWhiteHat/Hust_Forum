@@ -43,9 +43,17 @@ const Header = () => {
                   to={`/profile/${user._id}`}
                   className="flex items-center space-x-2 px-3 py-1.5 text-white hover:bg-gray-800 rounded transition"
                 >
-                  <div className="w-6 h-6 bg-[#FF4500] rounded-full flex items-center justify-center text-xs font-bold">
-                    {user.username.charAt(0).toUpperCase()}
-                  </div>
+                  {user.avatar ? (
+                    <img
+                      src={`${import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:3000'}${user.avatar}`}
+                      alt={user.username}
+                      className="w-7 h-7 rounded-full object-cover border border-gray-600"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 bg-[#FF4500] rounded-full flex items-center justify-center text-xs font-bold">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <span className="text-sm font-medium hidden sm:block">{user.username}</span>
                 </Link>
 
