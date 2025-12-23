@@ -1,3 +1,8 @@
+# SECURITY NOTE: Create a .env file in the project root with:
+# MONGO_ROOT_USERNAME=your_secure_username
+# MONGO_ROOT_PASSWORD=your_strong_password_here
+# JWT_SECRET=your_64_character_random_secret_key
+
 services:
   mongodb:
     image: mongo:6.0
@@ -6,8 +11,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD is required}
       MONGO_INITDB_DATABASE: bkforum
     volumes:
       - mongodb_data:/data/db
@@ -22,21 +27,26 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://admin:password@mongodb:27017/bkforum?authSource=admin
-      - JWT_SECRET=your_super_secret_jwt_key_here
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/bkforum?authSource=admin
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRE=7d
-      - CORS_ORIGIN=http://localhost:5173
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - mongodb
     networks:
       - bkforum-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:3000/api
     container_name: bkforum-frontend
     restart: unless-stopped
     ports:
-      - "5173:3000"
+      - "5173:4173"
     environment:
       - VITE_API_URL=http://localhost:3000/api
     depends_on:
@@ -46,8 +56,8 @@ services:
 
 volumes:
   mongodb_data:
+  uploads_data:
 
 networks:
   bkforum-network:
     driver: bridge
-

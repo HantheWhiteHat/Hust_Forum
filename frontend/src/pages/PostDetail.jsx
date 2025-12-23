@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Heart, MessageCircle, Eye, ArrowLeft } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowUp, ArrowDown, MessageCircle, Eye, ArrowLeft, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import api from '../api/api'
 import CommentTree from '../components/CommentTree'
+import MediaGallery from '../components/MediaGallery'
+import { useAuth } from '../store/authContext'
 
 const PostDetail = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
 
   useEffect(() => {
     fetchPost()
@@ -68,10 +78,60 @@ const PostDetail = () => {
     }
   }
 
+  const handleDelete = async () => {
+    if (!post || !user || post.author._id !== user._id) return
+
+    const confirmed = window.confirm('Are you sure you want to delete this post?')
+    if (!confirmed) return
+
+    try {
+      setDeleting(true)
+      await api.delete(`/posts/${post._id}`)
+      toast.success('Post deleted')
+      navigate('/')
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      toast.error(error.response?.data?.message || 'Failed to delete post')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Check if content is long (more than 500 characters of text)
+  const isLongContent = post && post.content && post.content.length > 500
+
+  // Process media content: replace blob URLs with server URLs
+  const processMediaContent = (htmlContent) => {
+    if (!htmlContent || !post) return htmlContent
+
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
+
+    // Find all media elements (img and video)
+    const mediaElements = tempDiv.querySelectorAll('img, video')
+
+    mediaElements.forEach((element) => {
+      const src = element.getAttribute('src')
+
+      // If it's a blob URL, replace with actual server URL
+      if (src && src.startsWith('blob:')) {
+        // Use post.image as the main media source
+        if (post.image) {
+          element.setAttribute('src', `${BASE_URL}${post.image}`)
+        }
+      } else if (src && !src.startsWith('http')) {
+        // If it's a relative path, make it absolute
+        element.setAttribute('src', `${BASE_URL}${src}`)
+      }
+    })
+
+    return tempDiv.innerHTML
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF4500]"></div>
       </div>
     )
   }
@@ -80,7 +140,7 @@ const PostDetail = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 text-lg">Post not found</p>
-        <Link to="/" className="text-blue-600 hover:underline mt-4 inline-block">
+        <Link to="/" className="text-[#FF4500] hover:underline mt-4 inline-block">
           Back to Home
         </Link>
       </div>
@@ -88,103 +148,260 @@ const PostDetail = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Link
-        to="/"
-        className="inline-flex items-center text-blue-600 hover:underline mb-6"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Posts
-      </Link>
+    <div className="min-h-screen bg-[#DAE0E6]">
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <Link
+          to="/"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 text-sm"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Back to posts
+        </Link>
 
-      <article className="card mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-              {post.author.username.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h3 className="font-medium">{post.author.username}</h3>
-              <p className="text-sm text-gray-500">
-                {new Date(post.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-            {post.category}
-          </span>
-        </div>
-
-        <h1 className="text-2xl font-bold mb-4">{post.title}</h1>
-        
-        <div className="prose max-w-none mb-6">
-          <p className="whitespace-pre-wrap">{post.content}</p>
-        </div>
-
-        {post.tags && post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {post.tags.map((tag, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="flex items-center space-x-4">
+        {/* Post Card */}
+        <article className="flex bg-white border border-gray-300 rounded">
+          {/* Vote Section */}
+          <div className="w-10 bg-gray-50 flex flex-col items-center py-2 px-1 rounded-l">
             <button
               onClick={() => handleVote('upvote')}
-              className="flex items-center space-x-1 text-gray-600 hover:text-red-600"
+              className="vote-btn text-gray-400 hover:text-[#FF4500] hover:bg-red-50"
             >
-              <Heart className="w-5 h-5" />
-              <span>{post.upvotes}</span>
+              <ArrowUp className="w-5 h-5" />
             </button>
-            <div className="flex items-center space-x-1 text-gray-600">
-              <MessageCircle className="w-5 h-5" />
-              <span>{post.commentCount}</span>
+            <span className="text-xs font-bold text-gray-700 my-1">
+              {post.upvotes || 0}
+            </span>
+            <button
+              onClick={() => handleVote('downvote')}
+              className="vote-btn text-gray-400 hover:text-[#7193FF] hover:bg-blue-50"
+            >
+              <ArrowDown className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Content Section */}
+          <div className="flex-1 p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                <span className="category-badge">r/{post.category}</span>
+                <span>•</span>
+                <span>Posted by u/{post.author.username}</span>
+                <span>•</span>
+                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+              </div>
+
+              {user && post.author._id === user._id && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4 inline mr-1" />
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
             </div>
-            <div className="flex items-center space-x-1 text-gray-600">
-              <Eye className="w-5 h-5" />
-              <span>{post.views}</span>
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold mb-4 text-gray-900">{post.title}</h1>
+
+            {/* Media Gallery - NEW: Handle both new media array and old single image */}
+            {post.media && post.media.length > 0 ? (
+              <MediaGallery media={post.media} />
+            ) : post.image ? (
+              <div className="my-4 bg-black rounded-lg overflow-hidden">
+                {post.mediaType === 'video' ? (
+                  <video
+                    src={`${BASE_URL}${post.image}`}
+                    controls
+                    className="w-full max-h-[600px] object-contain"
+                  />
+                ) : (
+                  <img
+                    src={`${BASE_URL}${post.image}`}
+                    alt={post.title}
+                    className="w-full max-h-[600px] object-contain"
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {/* Content with HTML formatting and Read More */}
+            <div className="mb-4">
+              <div
+                className={`post-content ${!isExpanded && isLongContent ? 'post-content-collapsed' : ''}`}
+                dangerouslySetInnerHTML={{ __html: processMediaContent(post.content) }}
+              />
+
+              {isLongContent && !isExpanded && (
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  className="mt-2 text-sm font-bold text-[#FF4500] hover:underline"
+                >
+                  Xem thêm
+                </button>
+              )}
+
+              {isLongContent && isExpanded && (
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="mt-2 text-sm font-bold text-[#FF4500] hover:underline"
+                >
+                  Thu gọn
+                </button>
+              )}
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center space-x-4 pt-3 border-t border-gray-200">
+              <div className="action-icon">
+                <MessageCircle className="w-4 h-4" />
+                <span>{comments.length} Comments</span>
+              </div>
+              <div className="action-icon">
+                <Eye className="w-4 h-4" />
+                <span>{post.views || 0} Views</span>
+              </div>
             </div>
           </div>
-        </div>
-      </article>
+        </article>
 
-      {/* Comments Section */}
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">Comments ({post.commentCount})</h3>
-        
-        <form onSubmit={handleSubmitComment} className="mb-6">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write a comment..."
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            rows="3"
-          />
-          <button
-            type="submit"
-            disabled={submittingComment || !newComment.trim()}
-            className="btn btn-primary mt-2 disabled:opacity-50"
-          >
-            {submittingComment ? 'Posting...' : 'Post Comment'}
-          </button>
-        </form>
+        {/* Comments Section */}
+        <div className="mt-4 bg-white border border-gray-300 rounded p-4">
+          <h2 className="text-lg font-bold mb-4">Comments</h2>
 
-        <div className="space-y-4">
-          {comments.map((comment) => (
-            <CommentTree key={comment._id} comment={comment} />
-          ))}
+          {user && (
+            <form onSubmit={handleSubmitComment} className="mb-6">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] focus:outline-none resize-none"
+                rows="3"
+                placeholder="What are your thoughts?"
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  disabled={submittingComment || !newComment.trim()}
+                  className="px-6 py-2 text-sm font-bold text-white bg-[#FF4500] rounded-full hover:bg-[#FF5722] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingComment ? 'Commenting...' : 'Comment'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {comments.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No comments yet. Be the first to comment!</p>
+          ) : (
+            <CommentTree
+              comments={comments}
+              postId={id}
+              onCommentUpdate={fetchComments}
+            />
+          )}
         </div>
-      </div>
-    </div>
+      </div >
+
+      {/* CSS for post content */}
+      < style > {`
+        .post-content {
+          font-size: 0.875rem;
+          line-height: 1.5;
+          color: #1a1a1b;
+        }
+
+        .post-content b,
+        .post-content strong {
+          font-weight: 600;
+        }
+
+        .post-content i,
+        .post-content em {
+          font-style: italic;
+        }
+
+        .post-content p {
+          margin-bottom: 0.75rem;
+        }
+
+        /* Collapsed state for long content */
+        .post-content-collapsed {
+          max-height: 300px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .post-content-collapsed::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100px;
+          background: linear-gradient(to bottom, transparent, white);
+        }
+
+        /* Media blocks from WYSIWYG editor */
+        .post-content .media-block {
+          margin: 1rem 0;
+          border: 1px solid #d1d5db;
+          border-radius: 0.5rem;
+          overflow: hidden;
+          background-color: #f9fafb;
+        }
+
+        .post-content .media-block > div:first-child {
+          position: relative;
+          background-color: #000;
+        }
+
+        .post-content .media-block img,
+        .post-content .media-block video {
+          width: 100%;
+          max-height: 32rem;
+          object-fit: contain;
+          display: block;
+        }
+
+        /* Caption rendering - show as text not input */
+        .post-content .media-block > div:last-child {
+          padding: 0.5rem;
+          background-color: #f9fafb;
+        }
+
+        .post-content .media-block input {
+          display: block;
+          width: 100%;
+          padding: 0;
+          margin: 0;
+          border: none;
+          background: transparent;
+          font-size: 0.75rem;
+          color: #6b7280;
+          font-style: italic;
+          pointer-events: none;
+          outline: none;
+        }
+
+        /* Hide remove buttons in view mode */
+        .post-content .media-block button {
+          display: none;
+        }
+
+        .vote-btn {
+          display: flex;
+          align-items: center;
+          justify-center;
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 0.25rem;
+          transition: all 0.15s;
+        }
+      `}</style >
+    </div >
   )
 }
 
 export default PostDetail
-
