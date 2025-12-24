@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { User, Mail, Calendar, MessageSquare, Camera, Edit2, X, Check } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { User, Mail, Calendar, MessageSquare, Camera, Edit2, X, Check, MessageCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../api/api'
 import { useAuth } from '../store/authContext'
+import { useTheme } from '../store/themeContext'
 import ImageCropper from '../components/ImageCropper'
 
 const Profile = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user: currentUser, updateUserProfile } = useAuth()
+  const { isDark } = useTheme()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -49,19 +52,16 @@ const Profile = () => {
     const file = e.target.files[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file')
       return
     }
 
-    // Validate max file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('Image size must be less than 10MB')
       return
     }
 
-    // If file is large, show cropper
     if (file.size > CROP_THRESHOLD) {
       const reader = new FileReader()
       reader.onload = () => {
@@ -70,11 +70,9 @@ const Profile = () => {
       }
       reader.readAsDataURL(file)
     } else {
-      // Small file, upload directly
       await uploadAvatar(file)
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -126,7 +124,6 @@ const Profile = () => {
 
   const getAvatarUrl = (avatarPath) => {
     if (!avatarPath) return null
-    // Handle both full URLs and relative paths
     if (avatarPath.startsWith('http')) return avatarPath
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
     const baseUrl = apiUrl.replace(/\/api\/?$/, '')
@@ -136,7 +133,7 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF4500]"></div>
       </div>
     )
   }
@@ -144,8 +141,8 @@ const Profile = () => {
   if (!user) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 text-lg">User not found</p>
-        <Link to="/" className="text-blue-600 hover:underline mt-4 inline-block">
+        <p className="text-gray-400 text-lg">User not found</p>
+        <Link to="/" className="text-[#FF4500] hover:underline mt-4 inline-block">
           Back to Home
         </Link>
       </div>
@@ -155,7 +152,7 @@ const Profile = () => {
   const avatarUrl = getAvatarUrl(user?.avatar)
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 py-6">
       {/* Image Cropper Modal */}
       {showCropper && imageToCrop && (
         <ImageCropper
@@ -166,30 +163,32 @@ const Profile = () => {
         />
       )}
 
-      <div className="card mb-6">
-        <div className="flex items-start space-x-6">
+      {/* Profile Card */}
+      <div className={`rounded-lg p-6 mb-6 transition-colors ${isDark ? 'bg-[#1A1A1B] border border-gray-700' : 'bg-white border border-gray-300 shadow-sm'
+        }`}>
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar Section */}
           <div className="relative group">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={user.username}
-                className={`w-20 h-20 rounded-full object-cover ${isOwnProfile ? 'cursor-pointer' : ''}`}
+                className={`w-24 h-24 rounded-full object-cover border-2 border-gray-700 ${isOwnProfile ? 'cursor-pointer' : ''}`}
                 onClick={handleAvatarClick}
               />
             ) : (
               <div
-                className={`w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold ${isOwnProfile ? 'cursor-pointer' : ''}`}
+                className={`w-24 h-24 bg-[#FF4500] rounded-full flex items-center justify-center text-white text-3xl font-bold ${isOwnProfile ? 'cursor-pointer' : ''}`}
                 onClick={handleAvatarClick}
               >
                 {user.username.charAt(0).toUpperCase()}
               </div>
             )}
 
-            {/* Upload overlay for own profile */}
+            {/* Upload overlay */}
             {isOwnProfile && (
               <div
-                className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={handleAvatarClick}
               >
                 {uploading ? (
@@ -200,7 +199,6 @@ const Profile = () => {
               </div>
             )}
 
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -210,27 +208,45 @@ const Profile = () => {
             />
           </div>
 
-          {/* User Info Section */}
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{user.username}</h1>
+          {/* User Info */}
+          <div className="flex-1 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{user.username}</h1>
               {isOwnProfile && !editing && (
                 <button
                   onClick={() => setEditing(true)}
-                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                  className={`p-1.5 rounded transition ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
                   title="Edit profile"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
               )}
+              {!isOwnProfile && currentUser && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get(`/chat/conversations/user/${id}`)
+                      navigate(`/chat/${response.data.conversation._id}`)
+                    } catch (error) {
+                      console.error('Error starting conversation:', error)
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#FF4500] text-white rounded-full text-sm font-medium hover:bg-[#FF5722] transition"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Message
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center space-x-4 mt-2 text-gray-600">
-              <div className="flex items-center space-x-1">
+            <div className={`flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+              <div className="flex items-center gap-1">
                 <Mail className="w-4 h-4" />
                 <span>{user.email}</span>
               </div>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
                 <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
               </div>
@@ -243,7 +259,10 @@ const Profile = () => {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Write something about yourself..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-transparent resize-none ${isDark
+                      ? 'bg-[#272729] border-gray-600 text-white placeholder-gray-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    }`}
                   rows={3}
                   maxLength={500}
                 />
@@ -255,13 +274,13 @@ const Profile = () => {
                         setEditing(false)
                         setBio(user.bio || '')
                       }}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                      className="p-2 text-gray-400 hover:bg-gray-700 rounded transition"
                     >
                       <X className="w-4 h-4" />
                     </button>
                     <button
                       onClick={handleSaveBio}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded"
+                      className="p-2 text-green-500 hover:bg-gray-700 rounded transition"
                     >
                       <Check className="w-4 h-4" />
                     </button>
@@ -269,18 +288,18 @@ const Profile = () => {
                 </div>
               </div>
             ) : (
-              user.bio && <p className="mt-4 text-gray-700">{user.bio}</p>
+              user.bio && <p className={`mt-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{user.bio}</p>
             )}
 
             {/* Stats */}
-            <div className="flex items-center space-x-6 mt-4">
+            <div className="flex items-center justify-center sm:justify-start gap-8 mt-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{user.reputation || 0}</div>
-                <div className="text-sm text-gray-500">Reputation</div>
+                <div className="text-2xl font-bold text-[#FF4500]">{user.reputation || 0}</div>
+                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Reputation</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{user.posts?.length || 0}</div>
-                <div className="text-sm text-gray-500">Posts</div>
+                <div className="text-2xl font-bold text-green-500">{user.posts?.length || 0}</div>
+                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Posts</div>
               </div>
             </div>
           </div>
@@ -288,28 +307,33 @@ const Profile = () => {
       </div>
 
       {/* User's Posts */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-6 flex items-center">
-          <MessageSquare className="w-5 h-5 mr-2" />
+      <div className={`rounded-lg p-6 transition-colors ${isDark ? 'bg-[#1A1A1B] border border-gray-700' : 'bg-white border border-gray-300 shadow-sm'
+        }`}>
+        <h2 className={`text-xl font-semibold mb-6 flex items-center ${isDark ? 'text-white' : 'text-gray-900'
+          }`}>
+          <MessageSquare className="w-5 h-5 mr-2 text-[#FF4500]" />
           Recent Posts
         </h2>
 
         {user.posts && user.posts.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {user.posts.map((post) => (
-              <div key={post._id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                <Link
-                  to={`/post/${post._id}`}
-                  className="block hover:bg-gray-50 p-3 rounded-lg transition-colors"
-                >
-                  <h3 className="font-medium text-gray-900 hover:text-blue-600">
-                    {post.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {new Date(post.createdAt).toLocaleDateString()}
-                  </p>
-                </Link>
-              </div>
+              <Link
+                key={post._id}
+                to={`/post/${post._id}`}
+                className={`block p-4 rounded-lg transition border ${isDark
+                    ? 'bg-[#272729] hover:bg-[#2d2d2f] border-gray-700 hover:border-gray-600'
+                    : 'bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <h3 className={`font-medium hover:text-[#FF4500] transition ${isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
+                  {post.title}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {new Date(post.createdAt).toLocaleDateString()}
+                </p>
+              </Link>
             ))}
           </div>
         ) : (

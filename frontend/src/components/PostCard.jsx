@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { MessageCircle, Eye, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 import { useAuth } from '../store/authContext'
+import { useTheme } from '../store/themeContext'
 import api from '../api/api'
 import toast from 'react-hot-toast'
 
 const PostCard = ({ post }) => {
   const { user } = useAuth()
+  const { isDark } = useTheme()
   const navigate = useNavigate()
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
   const BASE_URL = apiUrl.replace(/\/api\/?$/, '')
@@ -86,22 +88,26 @@ const PostCard = ({ post }) => {
   }
 
   return (
-    <article className="flex bg-white border border-gray-300 hover:border-gray-400 transition-all duration-150 rounded overflow-hidden">
+    <article className={`flex border transition-all duration-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md ${isDark
+      ? 'bg-[#1A1A1B] border-gray-700 hover:border-gray-500'
+      : 'bg-white border-gray-300 hover:border-gray-400'
+      }`}>
       {/* Vote Section */}
-      <div className="w-10 bg-gray-50 flex flex-col items-center py-2 px-1">
+      <div className={`w-10 flex flex-col items-center py-2 px-1 ${isDark ? 'bg-[#161617]' : 'bg-gray-50'
+        }`}>
         <button
           onClick={(e) => handleVote('upvote', e)}
           disabled={isVoting}
           className={`vote-btn p-1 rounded transition-all ${votes.userVote === 'upvote'
-              ? 'text-[#FF4500] bg-red-50'
-              : 'text-gray-400 hover:text-[#FF4500] hover:bg-red-50'
+            ? 'text-[#FF4500] bg-red-50'
+            : 'text-gray-400 hover:text-[#FF4500] hover:bg-red-50'
             } disabled:opacity-50`}
         >
           <ArrowUp className="w-5 h-5" />
         </button>
         <span className={`text-xs font-bold my-1 ${votes.userVote === 'upvote' ? 'text-[#FF4500]' :
-            votes.userVote === 'downvote' ? 'text-[#7193FF]' :
-              'text-gray-700'
+          votes.userVote === 'downvote' ? 'text-[#7193FF]' :
+            'text-gray-700'
           }`}>
           {netVotes}
         </span>
@@ -109,8 +115,8 @@ const PostCard = ({ post }) => {
           onClick={(e) => handleVote('downvote', e)}
           disabled={isVoting}
           className={`vote-btn p-1 rounded transition-all ${votes.userVote === 'downvote'
-              ? 'text-[#7193FF] bg-blue-50'
-              : 'text-gray-400 hover:text-[#7193FF] hover:bg-blue-50'
+            ? 'text-[#7193FF] bg-blue-50'
+            : 'text-gray-400 hover:text-[#7193FF] hover:bg-blue-50'
             } disabled:opacity-50`}
         >
           <ArrowDown className="w-5 h-5" />
@@ -121,7 +127,7 @@ const PostCard = ({ post }) => {
       <div className="flex-1 p-3">
         <Link to={`/post/${post._id}`} className="block">
           {/* Header */}
-          <div className="flex items-center space-x-2 text-xs text-gray-500 mb-1">
+          <div className={`flex items-center space-x-2 text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             <Link to={`/profile/${post.author._id}`} className="flex items-center space-x-1 hover:underline">
               {post.author.avatar ? (
                 <img
@@ -148,13 +154,14 @@ const PostCard = ({ post }) => {
           </div>
 
           {/* Title */}
-          <h2 className="text-base font-medium text-gray-900 hover:text-[#FF4500] mb-1.5 leading-tight">
+          <h2 className={`text-base font-medium hover:text-[#FF4500] mb-1.5 leading-tight ${isDark ? 'text-white' : 'text-gray-900'
+            }`}>
             {post.title}
           </h2>
 
           {/* Content Preview */}
           {post.content && (
-            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+            <p className={`text-sm mb-2 line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {stripHtmlTags(post.content)}
             </p>
           )}

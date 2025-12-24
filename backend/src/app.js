@@ -11,6 +11,8 @@ const postRoutes = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
 const voteRoutes = require('./routes/votes');
 const mediaRoutes = require('./routes/media');
+const notificationRoutes = require('./routes/notifications');
+const chatRoutes = require('./routes/chat');
 
 // Import middlewares
 const errorHandler = require('./middlewares/errorHandler');
@@ -68,6 +70,8 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

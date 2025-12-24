@@ -7,11 +7,13 @@ import { getSocket } from '../api/socket'
 import CommentTree from '../components/CommentTree'
 import MediaGallery from '../components/MediaGallery'
 import { useAuth } from '../store/authContext'
+import { useTheme } from '../store/themeContext'
 
 const PostDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { isDark } = useTheme()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState([])

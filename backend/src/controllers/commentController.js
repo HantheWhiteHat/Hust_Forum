@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const mongoose = require('mongoose');
 const { getIO } = require('../socket');
+const { createNotification } = require('./notificationController');
 
 // Optimized: Use aggregation instead of recursive N+1 queries
 const buildCommentTree = (comments, parentId = null) => {
@@ -124,6 +125,34 @@ const createComment = async (req, res) => {
       });
     } catch (emitError) {
       console.error('Socket emit error (comment:new):', emitError.message);
+    }
+
+    // Create notification for post author or parent comment author
+    if (parentCommentId) {
+      // Notify parent comment author about reply
+      const parentComment = await Comment.findById(parentCommentId);
+      if (parentComment && parentComment.author.toString() !== req.user.id) {
+        await createNotification({
+          recipient: parentComment.author,
+          sender: req.user.id,
+          type: 'reply',
+          post: postId,
+          comment: comment._id,
+          message: `replied to your comment`
+        });
+      }
+    } else {
+      // Notify post author about new comment
+      if (post.author.toString() !== req.user.id) {
+        await createNotification({
+          recipient: post.author,
+          sender: req.user.id,
+          type: 'comment',
+          post: postId,
+          comment: comment._id,
+          message: `commented on your post`
+        });
+      }
     }
 
     res.status(201).json(populatedComment);

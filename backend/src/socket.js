@@ -17,6 +17,14 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
+    // Join user's personal room for notifications
+    socket.on('authenticate', (userId) => {
+      if (userId) {
+        socket.join(`user:${userId}`);
+        console.log(`User ${userId} joined their notification room`);
+      }
+    });
+
     socket.on('join_post', (postId) => {
       if (postId) {
         socket.join(`post:${postId}`);
@@ -40,7 +48,19 @@ const getIO = () => {
   return io;
 };
 
+// Emit socket event to a specific room
+const emitSocketEvent = (event, data, room) => {
+  if (io) {
+    if (room) {
+      io.to(room).emit(event, data);
+    } else {
+      io.emit(event, data);
+    }
+  }
+};
+
 module.exports = {
   initSocket,
   getIO,
+  emitSocketEvent,
 };

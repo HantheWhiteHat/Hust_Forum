@@ -3,6 +3,7 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const User = require('../models/User');
 const { getIO } = require('../socket');
+const { createNotification } = require('./notificationController');
 
 // Helper function to emit socket events safely
 const emitSocketEvent = (eventName, payload, roomName = null) => {
@@ -163,6 +164,17 @@ const createVote = async (req, res) => {
         upvotes: result.upvotes,
         downvotes: result.downvotes,
       }, `post:${postId}`);
+
+      // Create notification for upvote only (not downvote)
+      if (type === 'upvote' && result.author && result.author.toString() !== req.user.id) {
+        await createNotification({
+          recipient: result.author,
+          sender: req.user.id,
+          type: 'like',
+          post: postId,
+          message: `upvoted your post`
+        });
+      }
 
       return res.status(201).json({
         vote,

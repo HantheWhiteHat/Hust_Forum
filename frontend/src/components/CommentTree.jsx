@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, Reply, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api/api'
+import { useTheme } from '../store/themeContext'
 
 const CommentTree = ({ comment, onReplySuccess }) => {
+  const { isDark } = useTheme()
   const [showReplies, setShowReplies] = useState(true)
   const [replies, setReplies] = useState(comment.replies || [])
   const [showReplyForm, setShowReplyForm] = useState(false)
@@ -64,7 +66,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
   const avatarUrl = getAvatarUrl(comment.author?.avatar)
 
   return (
-    <div className="border-l-2 border-gray-200 pl-4">
+    <div className="border-l-2 border-gray-600 pl-4">
       <div className="flex items-start space-x-3">
         <Link to={`/profile/${comment.author?._id}`}>
           {avatarUrl ? (
@@ -82,7 +84,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
 
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <span className="font-medium text-gray-900">{comment.author?.username || 'unknown'}</span>
+            <span className="font-medium text-white">{comment.author?.username || 'unknown'}</span>
             <span className="text-sm text-gray-500">
               {new Date(comment.createdAt).toLocaleDateString()}
             </span>
@@ -91,12 +93,12 @@ const CommentTree = ({ comment, onReplySuccess }) => {
             )}
           </div>
 
-          <p className="text-gray-700 mb-3 whitespace-pre-wrap">{comment.content}</p>
+          <p className="text-gray-300 mb-3 whitespace-pre-wrap">{comment.content}</p>
 
           <div className="flex items-center space-x-4">
             <button
               onClick={() => handleVote('upvote')}
-              className="flex items-center space-x-1 text-gray-600 hover:text-red-600"
+              className="flex items-center space-x-1 text-gray-400 hover:text-red-500"
             >
               <Heart className="w-4 h-4" />
               <span>{comment.upvotes}</span>
@@ -104,7 +106,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
 
             <button
               onClick={() => setShowReplyForm(!showReplyForm)}
-              className="flex items-center space-x-1 text-gray-600 hover:text-blue-600"
+              className="flex items-center space-x-1 text-gray-400 hover:text-blue-400"
             >
               <Reply className="w-4 h-4" />
               <span>Reply</span>
@@ -118,21 +120,21 @@ const CommentTree = ({ comment, onReplySuccess }) => {
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Write a reply..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-3 border border-gray-600 rounded-lg bg-[#272729] text-white placeholder-gray-500 focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500]"
                 rows="3"
               />
               <div className="flex justify-end space-x-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowReplyForm(false)}
-                  className="btn btn-secondary"
+                  className="px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-lg transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingReply || !replyText.trim()}
-                  className="btn btn-primary disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#FF4500] hover:bg-[#FF5722] rounded-lg transition disabled:opacity-50"
                 >
                   {submittingReply ? 'Posting...' : 'Post Reply'}
                 </button>
@@ -145,7 +147,7 @@ const CommentTree = ({ comment, onReplySuccess }) => {
             <div className="mt-4">
               <button
                 onClick={() => setShowReplies(!showReplies)}
-                className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800 mb-2"
+                className="flex items-center space-x-1 text-sm text-gray-400 hover:text-gray-200 mb-2"
               >
                 {showReplies ? (
                   <ChevronDown className="w-4 h-4" />

@@ -4,8 +4,10 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Bold, Italic, Image as ImageIcon, Video, X } from 'lucide-react'
 import api from '../api/api'
+import { useTheme } from '../store/themeContext'
 
 const CreatePost = () => {
+    const { isDark } = useTheme()
     const [loading, setLoading] = useState(false)
     const [mediaFiles, setMediaFiles] = useState([]) // Store actual files
 
@@ -329,12 +331,15 @@ const CreatePost = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#DAE0E6] py-6">
+        <div className="min-h-screen py-6">
             <div className="max-w-4xl mx-auto px-4">
-                <div className="bg-white rounded border border-gray-300">
+                <div className={`rounded-lg border transition-colors ${isDark ? 'bg-[#1A1A1B] border-gray-700' : 'bg-white border-gray-300 shadow-sm'
+                    }`}>
                     {/* Header */}
-                    <div className="px-6 py-4 border-b border-gray-300">
-                        <h1 className="text-lg font-medium text-gray-900">Create a post</h1>
+                    <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                        <h1 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'
+                            }`}>Create a post</h1>
                     </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="p-6">
@@ -342,7 +347,10 @@ const CreatePost = () => {
                         <div className="mb-4">
                             <select
                                 {...register('category', { required: 'Choose a community' })}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] cursor-pointer"
+                                className={`w-full px-3 py-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] cursor-pointer ${isDark
+                                        ? 'border-gray-600 bg-[#272729] text-gray-200 hover:bg-[#333]'
+                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                    }`}
                             >
                                 <option value="">Choose a community</option>
                                 <option value="general">r/general</option>
@@ -366,7 +374,7 @@ const CreatePost = () => {
                                         required: 'Title is required',
                                         maxLength: { value: maxTitleLength, message: `Max ${maxTitleLength} characters` }
                                     })}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500]"
+                                    className="w-full px-3 py-2 text-sm border border-gray-600 rounded bg-[#272729] text-white placeholder-gray-500 hover:bg-[#333] focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500]"
                                     placeholder="Title"
                                     maxLength={maxTitleLength}
                                 />
@@ -382,39 +390,39 @@ const CreatePost = () => {
                         {/* WYSIWYG Editor */}
                         <div className="mb-4">
                             {/* Toolbar */}
-                            <div className="flex items-center gap-1 p-2 border border-b-0 border-gray-300 bg-gray-50 rounded-t">
+                            <div className="flex items-center gap-1 p-2 border border-b-0 border-gray-600 bg-[#272729] rounded-t">
                                 <button
                                     type="button"
                                     onClick={() => applyFormat('bold')}
-                                    className="p-2 hover:bg-gray-200 rounded transition"
+                                    className="p-2 hover:bg-gray-600 rounded transition"
                                     title="Bold (Ctrl+B)"
                                 >
-                                    <Bold className="w-4 h-4 text-gray-700" />
+                                    <Bold className="w-4 h-4 text-gray-300" />
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => applyFormat('italic')}
-                                    className="p-2 hover:bg-gray-200 rounded transition"
+                                    className="p-2 hover:bg-gray-600 rounded transition"
                                     title="Italic (Ctrl+I)"
                                 >
-                                    <Italic className="w-4 h-4 text-gray-700" />
+                                    <Italic className="w-4 h-4 text-gray-300" />
                                 </button>
-                                <div className="w-px h-5 bg-gray-300 mx-1" />
+                                <div className="w-px h-5 bg-gray-600 mx-1" />
                                 <button
                                     type="button"
                                     onClick={() => insertMediaAtCursor('image')}
-                                    className="p-2 hover:bg-gray-200 rounded transition"
+                                    className="p-2 hover:bg-gray-600 rounded transition"
                                     title="Insert image"
                                 >
-                                    <ImageIcon className="w-4 h-4 text-gray-700" />
+                                    <ImageIcon className="w-4 h-4 text-gray-300" />
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => insertMediaAtCursor('video')}
-                                    className="p-2 hover:bg-gray-200 rounded transition"
+                                    className="p-2 hover:bg-gray-600 rounded transition"
                                     title="Insert video"
                                 >
-                                    <Video className="w-4 h-4 text-gray-700" />
+                                    <Video className="w-4 h-4 text-gray-300" />
                                 </button>
                             </div>
 
@@ -423,7 +431,7 @@ const CreatePost = () => {
                                 ref={editorRef}
                                 onKeyDown={handleKeyDown}
                                 onPaste={handlePaste}
-                                className="editor-content w-full px-3 py-3 text-sm border border-gray-300 rounded-b focus:outline-none focus:ring-2 focus:ring-[#FF4500] min-h-[300px] bg-white"
+                                className="editor-content w-full px-3 py-3 text-sm border border-gray-600 rounded-b focus:outline-none focus:ring-2 focus:ring-[#FF4500] min-h-[300px] bg-[#272729] text-white"
                                 data-placeholder="Text (optional)"
                             />
 
@@ -433,11 +441,11 @@ const CreatePost = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
                             <button
                                 type="button"
                                 onClick={() => navigate('/')}
-                                className="px-6 py-2 text-sm font-bold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 transition"
+                                className="px-6 py-2 text-sm font-bold text-gray-300 bg-transparent border-2 border-gray-600 rounded-full hover:bg-gray-700 transition"
                             >
                                 Cancel
                             </button>

@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, Plus, Search, X, Loader2 } from 'lucide-react'
+import { LogOut, Plus, Search, X, Loader2, MessageCircle, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../store/authContext'
+import { useTheme } from '../store/themeContext'
 import api from '../api/api'
+import NotificationBell from './NotificationBell'
 
 const Header = () => {
   const { user, logout } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -88,11 +91,13 @@ const Header = () => {
   }
 
   return (
-    <header className="bg-[#1A1A1B] sticky top-0 z-50 border-b border-gray-800">
+    <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${isDark ? 'bg-[#1A1A1B] border-gray-800' : 'bg-white border-gray-200'
+      }`}>
       <div className="max-w-7xl mx-auto px-4 py-2">
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 text-white hover:opacity-90 transition flex-shrink-0">
+          <Link to="/" className={`flex items-center space-x-2 hover:opacity-90 transition flex-shrink-0 ${isDark ? 'text-white' : 'text-gray-900'
+            }`}>
             <img
               src="/favico.png"
               alt="BK Forum"
@@ -189,9 +194,35 @@ const Header = () => {
                   <span className="hidden sm:inline">Create</span>
                 </Link>
 
+                {/* Notification Bell */}
+                <NotificationBell />
+
+                {/* Chat Link */}
+                <Link
+                  to="/chat"
+                  className={`p-2 rounded-full transition ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+                  title="Messages"
+                >
+                  <MessageCircle className={`w-5 h-5 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`} />
+                </Link>
+
+                {/* Theme Toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className={`p-2 rounded-full transition ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+                  title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                >
+                  {isDark ? (
+                    <Sun className="w-5 h-5 text-yellow-400 hover:text-yellow-300 transition" />
+                  ) : (
+                    <Moon className="w-5 h-5 text-gray-600 hover:text-gray-900 transition" />
+                  )}
+                </button>
+
                 <Link
                   to={`/profile/${user._id}`}
-                  className="flex items-center space-x-2 px-2 py-1.5 text-white hover:bg-gray-800 rounded transition"
+                  className={`flex items-center space-x-2 px-2 py-1.5 rounded transition ${isDark ? 'text-white hover:bg-gray-800' : 'text-gray-900 hover:bg-gray-100'
+                    }`}
                 >
                   {user.avatar ? (
                     <img
